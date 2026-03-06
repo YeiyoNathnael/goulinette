@@ -147,3 +147,94 @@ func f(b bool) {
 		})
 	}
 }
+
+func TestCTX04_CancelMustBeHandled(t *testing.T) {
+	tests := []struct {
+		name      string
+		source    string
+		wantCount int
+	}{
+		{
+			name: "missing cancel handling fails",
+			source: `package sample
+import "context"
+func f(parent context.Context) {
+	ctx, cancel := context.WithCancel(parent)
+	_ = ctx
+	_ = cancel
+}
+`,
+			wantCount: 1,
+		},
+		{
+			name: "defer cancel immediately passes",
+			source: `package sample
+import "context"
+func f(parent context.Context) {
+	ctx, cancel := context.WithCancel(parent)
+	defer cancel()
+	_ = ctx
+}
+`,
+			wantCount: 0,
+		},
+		{
+			name: "defer with wrapper argument accepted",
+			source: `package sample
+import "context"
+func cleanup(fn func()) { fn() }
+func f(parent context.Context) {
+	ctx, cancel := context.WithTimeout(parent, 0)
+	defer cleanup(cancel)
+	_ = ctx
+}
+`,
+			wantCount: 0,
+		},
+		{
+			name: "conditional cancel call warns",
+			source: `package sample
+import "context"
+func f(parent context.Context, b bool) {
+	ctx, cancel := context.WithCancel(parent)
+	if b {
+		cancel()
+	}
+	_ = ctx
+}
+`,
+			wantCount: 1,
+		},
+		{
+			name: "early return before defer warns",
+			source: `package sample
+import "context"
+func f(parent context.Context, b bool) {
+	ctx, cancel := context.WithCancel(parent)
+	if b {
+		return
+	}
+	defer cancel()
+	_ = ctx
+}
+`,
+			wantCount: 1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeCTXFile(t, dir, "go.mod", "module example.com/ctx04\n\ngo 1.22\n")
+			writeCTXFile(t, dir, "sample.go", tc.source)
+
+			diags, err := NewCTX04().Run(Context{Root: dir})
+			if err != nil {
+				t.Fatalf("run CTX-04: %v", err)
+			}
+			if len(diags) != tc.wantCount {
+				t.Fatalf("expected %d CTX-04 diagnostics, got %d", tc.wantCount, len(diags))
+			}
+		})
+	}
+}

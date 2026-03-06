@@ -75,7 +75,8 @@ func (tst02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 		}
 
 		for name, info := range helperCandidates {
-			if !helperUsedByTests[name] {
+			used, _ := helperUsedByTests[name]
+			if !used {
 				continue
 			}
 			if firstStmtIsHelper(info.Node.Body, info.TestingParam) {

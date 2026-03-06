@@ -69,8 +69,8 @@ func cloneState(in assignmentState) assignmentState {
 func intersectState(a assignmentState, b assignmentState) assignmentState {
 	out := make(assignmentState, len(a))
 	for k, va := range a {
-		vb := b[k]
-		out[k] = va && vb
+		vb, ok := b[k]
+		out[k] = va && ok && vb
 	}
 	return out
 }
@@ -188,7 +188,8 @@ func analyzeStmtForCER03(stmt ast.Stmt, in assignmentState, tracked map[*types.V
 			if _, ok := tracked[obj]; !ok {
 				continue
 			}
-			if assigned := state[obj]; assigned {
+			assigned, ok := state[obj]
+			if ok && assigned {
 				continue
 			}
 			pos := fset.Position(id.Pos())

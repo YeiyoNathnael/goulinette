@@ -90,7 +90,7 @@ func containsCopySensitiveValue(t types.Type, seen map[types.Type]bool) bool {
 		return false
 	}
 	t = types.Unalias(t)
-	if seen[t] {
+	if visited, ok := seen[t]; ok && visited {
 		return false
 	}
 	seen[t] = true

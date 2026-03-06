@@ -145,7 +145,8 @@ func con03DiagnosticsForOwnership(fset *token.FileSet, analysis funcChannelAnaly
 
 		multiWriter := len(writers) > 1
 		for _, closeEv := range closes {
-			if !writers[closeEv.contextID] {
+			wrote, ok := writers[closeEv.contextID]
+			if !ok || !wrote {
 				pos := fset.Position(closeEv.pos)
 				diagnostics = append(diagnostics, diag.Diagnostic{
 					RuleID:   "CON-03",

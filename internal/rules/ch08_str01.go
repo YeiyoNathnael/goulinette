@@ -70,7 +70,12 @@ func (str01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 	for typeName, methods := range byType {
 		names := map[string]int{}
 		for _, m := range methods {
-			names[m.receiverName]++
+			count, ok := names[m.receiverName]
+			if !ok {
+				names[m.receiverName] = 1
+				continue
+			}
+			names[m.receiverName] = count + 1
 		}
 		inconsistent := len(names) > 1
 

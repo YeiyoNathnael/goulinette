@@ -57,7 +57,7 @@ func (imp02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				selector = defaultImportName(imp.Path.Value)
 			}
 
-			if usedSelectors[selector] {
+			if used, ok := usedSelectors[selector]; ok && used {
 				continue
 			}
 

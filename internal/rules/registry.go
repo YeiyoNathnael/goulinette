@@ -41,6 +41,7 @@ func Registry() []Rule {
 		NewSTR01(),
 		NewSTR02(),
 		NewSTR03(),
+		NewSTR04(),
 	}
 }
 

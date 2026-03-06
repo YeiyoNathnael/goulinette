@@ -30,6 +30,7 @@ func Registry() []Rule {
 		NewERR05(),
 		NewERR06(),
 		NewERR07(),
+		NewERR08(),
 	}
 }
 

@@ -31,6 +31,7 @@ func Registry() []Rule {
 		NewERR06(),
 		NewERR07(),
 		NewERR08(),
+		NewTYP06(),
 	}
 }
 

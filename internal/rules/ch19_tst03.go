@@ -48,7 +48,7 @@ func (tst03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 					pos := pkg.Fset.Position(call.Pos())
 					diagnostics = append(diagnostics, diag.Diagnostic{
 						RuleID:   "TST-03",
-						Severity: diag.SeverityWarning,
+						Severity: diag.SeverityError,
 						Message:  "time.Sleep in tests can create flaky synchronization",
 						Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
 						Hint:     "prefer channels, sync.WaitGroup, or context deadlines over sleep-based synchronization",
@@ -73,7 +73,7 @@ func (tst03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 			pos := tf.FSet.Position(call.Pos())
 			diagnostics = append(diagnostics, diag.Diagnostic{
 				RuleID:   "TST-03",
-				Severity: diag.SeverityWarning,
+				Severity: diag.SeverityError,
 				Message:  "time.Sleep in tests can create flaky synchronization",
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
 				Hint:     "prefer channels, sync.WaitGroup, or context deadlines over sleep-based synchronization",

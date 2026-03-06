@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"goulinette/internal/diag"
 )
 
 func writeCTXFile(t *testing.T, dir, name, content string) string {
@@ -143,6 +145,9 @@ func f(b bool) {
 			}
 			if len(diags) != tc.wantCount {
 				t.Fatalf("expected %d CTX-03 diagnostics, got %d", tc.wantCount, len(diags))
+			}
+			if tc.wantCount > 0 && diags[0].Severity != diag.SeverityError {
+				t.Fatalf("expected CTX-03 severity error, got %s", diags[0].Severity)
 			}
 		})
 	}

@@ -149,7 +149,7 @@ func con03DiagnosticsForOwnership(fset *token.FileSet, analysis funcChannelAnaly
 				pos := fset.Position(closeEv.pos)
 				diagnostics = append(diagnostics, diag.Diagnostic{
 					RuleID:   "CON-03",
-					Severity: diag.SeverityWarning,
+					Severity: diag.SeverityError,
 					Message:  "channel appears to be closed by a different goroutine than the writer",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
 					Hint:     "prefer explicit ownership where writers coordinate close",
@@ -160,7 +160,7 @@ func con03DiagnosticsForOwnership(fset *token.FileSet, analysis funcChannelAnaly
 				pos := fset.Position(closeEv.pos)
 				diagnostics = append(diagnostics, diag.Diagnostic{
 					RuleID:   "CON-03",
-					Severity: diag.SeverityWarning,
+					Severity: diag.SeverityError,
 					Message:  "multiple goroutines write to channel without obvious WaitGroup coordination before close",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
 					Hint:     "use sync.WaitGroup and close channel only after wg.Wait()",

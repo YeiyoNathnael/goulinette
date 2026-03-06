@@ -220,7 +220,7 @@ func ctx03CallDiagnostics(call *ast.CallExpr, state ctxAssignState, info *types.
 			pos := fset.Position(arg.Pos())
 			diags = append(diags, diag.Diagnostic{
 				RuleID:   "CTX-03",
-				Severity: diag.SeverityWarning,
+				Severity: diag.SeverityError,
 				Message:  "nil must not be passed as context.Context",
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
 				Hint:     "use context.Background() or context.TODO()",
@@ -244,7 +244,7 @@ func ctx03CallDiagnostics(call *ast.CallExpr, state ctxAssignState, info *types.
 		pos := fset.Position(id.Pos())
 		diags = append(diags, diag.Diagnostic{
 			RuleID:   "CTX-03",
-			Severity: diag.SeverityWarning,
+			Severity: diag.SeverityError,
 			Message:  "context.Context variable may be nil when passed to call",
 			Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
 			Hint:     "ensure context is assigned (e.g., context.Background()) before passing",

@@ -170,7 +170,7 @@ func TestTST03_TimeSleepInTests(t *testing.T) {
 		wantSeverity string
 	}{
 		{
-			name: "direct time sleep in test warns",
+			name: "direct time sleep in test errors",
 			files: map[string]string{
 				"go.mod": "module example.com/tst03\n\ngo 1.22\n",
 				"a_test.go": `package sample
@@ -183,7 +183,7 @@ func TestX(t *testing.T) { time.Sleep(time.Millisecond) }
 			},
 			context:      func(dir string, _ []string) Context { return Context{Root: dir} },
 			wantCount:    1,
-			wantSeverity: "warning",
+			wantSeverity: "error",
 		},
 		{
 			name: "aliased time import is resolved",
@@ -199,7 +199,7 @@ func TestX(t *testing.T) { tm.Sleep(tm.Millisecond) }
 			},
 			context:      func(dir string, _ []string) Context { return Context{Root: dir} },
 			wantCount:    1,
-			wantSeverity: "warning",
+			wantSeverity: "error",
 		},
 		{
 			name: "non test file is ignored",

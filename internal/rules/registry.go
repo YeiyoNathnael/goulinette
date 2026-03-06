@@ -48,6 +48,9 @@ func Registry() []Rule {
 		NewDOC04(),
 		NewDOC05(),
 		NewSLC01(),
+		NewCON01(),
+		NewCON02(),
+		NewCON03(),
 	}
 }
 

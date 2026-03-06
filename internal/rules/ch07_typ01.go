@@ -36,7 +36,7 @@ func (typ01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 					continue
 				}
 
-				params := pointerParams(fn, pkg.TypesInfo)
+				params := pointerParams(fn, pkg.TypesInfo, pkg.Types)
 				for _, p := range params {
 					usage := analyzePointerParamUsage(fn.Body, p)
 					if !usage.used || usage.mutated || usage.escaped {
@@ -59,7 +59,7 @@ func (typ01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 	return diagnostics, nil
 }
 
-func pointerParams(fn *ast.FuncDecl, info *types.Info) []*ast.Ident {
+func pointerParams(fn *ast.FuncDecl, info *types.Info, currentPkg *types.Package) []*ast.Ident {
 	out := make([]*ast.Ident, 0)
 	if fn.Type == nil || fn.Type.Params == nil {
 		return out
@@ -74,13 +74,39 @@ func pointerParams(fn *ast.FuncDecl, info *types.Info) []*ast.Ident {
 			if t == nil {
 				continue
 			}
-			if _, ok := t.Underlying().(*types.Pointer); ok {
+			if isLocalStructPointerType(t, currentPkg) {
 				out = append(out, name)
 			}
 		}
 	}
 
 	return out
+}
+
+func isLocalStructPointerType(t types.Type, currentPkg *types.Package) bool {
+	if t == nil || currentPkg == nil {
+		return false
+	}
+
+	ptr, ok := t.Underlying().(*types.Pointer)
+	if !ok {
+		return false
+	}
+
+	elem := ptr.Elem()
+	named, ok := elem.(*types.Named)
+	if !ok {
+		return false
+	}
+	if named.Obj() == nil || named.Obj().Pkg() == nil {
+		return false
+	}
+	if named.Obj().Pkg().Path() != currentPkg.Path() {
+		return false
+	}
+
+	_, isStruct := named.Underlying().(*types.Struct)
+	return isStruct
 }
 
 type pointerUsage struct {

@@ -35,6 +35,9 @@ func (fun03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				if !ok || fn.Name == nil {
 					continue
 				}
+				if !fn.Name.IsExported() {
+					continue
+				}
 
 				obj, ok := pkg.TypesInfo.Defs[fn.Name].(*types.Func)
 				if !ok {
@@ -97,6 +100,13 @@ func shouldWarnConcreteParamsTyped(sig *types.Signature) bool {
 }
 
 func shouldWarnInterfaceReturnTyped(sig *types.Signature) bool {
+	if sig == nil {
+		return false
+	}
+	if sig.Params() == nil || sig.Params().Len() == 0 {
+		return false
+	}
+
 	results := sig.Results()
 	if results == nil {
 		return false

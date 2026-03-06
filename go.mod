@@ -1,4 +1,4 @@
-module goulinette
+module github.com/YeiyoNathnael/goulinette
 
 go 1.24.0
 

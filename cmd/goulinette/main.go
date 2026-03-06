@@ -4,8 +4,8 @@ import (
 	"context"
 	"os"
 
-	"goulinette/internal/app"
-	"goulinette/internal/config"
+	"github.com/YeiyoNathnael/goulinette/internal/app"
+	"github.com/YeiyoNathnael/goulinette/internal/config"
 )
 
 func main() {

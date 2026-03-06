@@ -5,7 +5,7 @@ import (
 	"go/token"
 	"unicode"
 
-	"goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 type nam03Rule struct{}

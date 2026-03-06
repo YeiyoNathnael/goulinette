@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 func ParseOutputDiagnostics(output, ruleID, tool string, severity diag.Severity) []diag.Diagnostic {

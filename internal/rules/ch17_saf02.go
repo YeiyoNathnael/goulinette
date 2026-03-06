@@ -5,7 +5,7 @@ import (
 	"go/token"
 	"go/types"
 
-	"goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 type saf02Rule struct{}

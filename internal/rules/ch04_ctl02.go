@@ -4,7 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 
-	"goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 type ctl02Rule struct{}

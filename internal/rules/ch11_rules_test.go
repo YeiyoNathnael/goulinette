@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 func writeModuleFile(t *testing.T, dir, name, content string) string {

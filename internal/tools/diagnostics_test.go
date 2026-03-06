@@ -3,7 +3,7 @@ package tools
 import (
 	"testing"
 
-	"goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 func TestParseOutputDiagnostics_WithPosition(t *testing.T) {

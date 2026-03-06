@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 type str04Rule struct{}

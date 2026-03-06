@@ -3,7 +3,7 @@ package rules
 import (
 	"go/ast"
 
-	"goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 type imp02Rule struct{}

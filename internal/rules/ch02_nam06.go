@@ -3,7 +3,7 @@ package rules
 import (
 	"strings"
 
-	"goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 type nam06Rule struct{}

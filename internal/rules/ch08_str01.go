@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode"
 
-	"goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 type str01Rule struct{}

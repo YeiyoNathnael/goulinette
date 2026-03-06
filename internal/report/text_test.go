@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 func TestPrintTextSeverityColors(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 const (

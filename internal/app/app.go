@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 
-	"goulinette/internal/config"
-	"goulinette/internal/diag"
-	"goulinette/internal/discovery"
-	"goulinette/internal/report"
-	"goulinette/internal/rules"
+	"github.com/YeiyoNathnael/goulinette/internal/config"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/discovery"
+	"github.com/YeiyoNathnael/goulinette/internal/report"
+	"github.com/YeiyoNathnael/goulinette/internal/rules"
 )
 
 type App struct {

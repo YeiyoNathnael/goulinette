@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"goulinette/internal/diag"
-	"goulinette/internal/tools"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/tools"
 )
 
 type fmt02Rule struct{}

@@ -5,7 +5,7 @@ import (
 	"go/token"
 	"strconv"
 
-	"goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 type lim01Rule struct{}

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"goulinette/internal/diag"
-	"goulinette/internal/tools"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/tools"
 )
 
 type fmt01Rule struct{}

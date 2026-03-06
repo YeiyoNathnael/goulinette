@@ -4,7 +4,7 @@ import (
 	"go/ast"
 	"strings"
 
-	"goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 type str02Rule struct{}

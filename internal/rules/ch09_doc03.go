@@ -1,6 +1,6 @@
 package rules
 
-import "goulinette/internal/diag"
+import "github.com/YeiyoNathnael/goulinette/internal/diag"
 
 type doc03Rule struct{}
 

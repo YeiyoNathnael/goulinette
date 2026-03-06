@@ -4,7 +4,7 @@ import (
 	"go/ast"
 	"strconv"
 
-	"goulinette/internal/diag"
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 type lim02Rule struct{}

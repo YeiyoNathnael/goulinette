@@ -11,37 +11,81 @@ func isSyncNamedType(t types.Type, name string) bool {
 	return named.Obj().Pkg().Path() == "sync" && named.Obj().Name() == name
 }
 
-func containsSyncMutexValue(t types.Type, seen map[types.Type]bool) bool {
-	if t == nil {
-		return false
-	}
+var syncCopySensitiveTypeNames = map[string]struct{}{
+	"Mutex":     {},
+	"RWMutex":   {},
+	"WaitGroup": {},
+	"Once":      {},
+	"Cond":      {},
+	"Map":       {},
+}
+
+func isSyncCopySensitiveType(t types.Type) bool {
 	t = types.Unalias(t)
-	if seen[t] {
+	named, ok := t.(*types.Named)
+	if !ok || named.Obj() == nil || named.Obj().Pkg() == nil {
 		return false
 	}
-	seen[t] = true
-
-	if isSyncNamedType(t, "Mutex") || isSyncNamedType(t, "RWMutex") {
-		return true
-	}
-
-	switch tt := t.(type) {
-	case *types.Pointer:
+	if named.Obj().Pkg().Path() != "sync" {
 		return false
-	case *types.Named:
-		return containsSyncMutexValue(tt.Underlying(), seen)
-	case *types.Struct:
-		for i := 0; i < tt.NumFields(); i++ {
-			if containsSyncMutexValue(tt.Field(i).Type(), seen) {
-				return true
-			}
+	}
+	_, ok = syncCopySensitiveTypeNames[named.Obj().Name()]
+	return ok
+}
+
+func hasMethodNamedNoArgsNoResults(t types.Type, name string) bool {
+	ms := types.NewMethodSet(t)
+	for i := 0; i < ms.Len(); i++ {
+		sel := ms.At(i)
+		if sel == nil || sel.Obj() == nil || sel.Obj().Name() != name {
+			continue
+		}
+		fn, ok := sel.Obj().(*types.Func)
+		if !ok {
+			continue
+		}
+		sig, ok := fn.Type().(*types.Signature)
+		if !ok || sig.Params() == nil || sig.Results() == nil {
+			continue
+		}
+		if sig.Params().Len() == 0 && sig.Results().Len() == 0 {
+			return true
 		}
 	}
-
 	return false
 }
 
-func containsWaitGroupValue(t types.Type, seen map[types.Type]bool) bool {
+func hasLockUnlockPair(t types.Type) bool {
+	if t == nil {
+		return false
+	}
+	t = types.Unalias(t)
+	if isNoCopyTypeName(t) {
+		return true
+	}
+	if hasMethodNamedNoArgsNoResults(t, "Lock") && hasMethodNamedNoArgsNoResults(t, "Unlock") {
+		return true
+	}
+	if _, isPtr := t.(*types.Pointer); isPtr {
+		if pt, ok := t.(*types.Pointer); ok && isNoCopyTypeName(pt.Elem()) {
+			return true
+		}
+		return false
+	}
+	pt := types.NewPointer(t)
+	return hasMethodNamedNoArgsNoResults(pt, "Lock") && hasMethodNamedNoArgsNoResults(pt, "Unlock")
+}
+
+func isNoCopyTypeName(t types.Type) bool {
+	t = types.Unalias(t)
+	named, ok := t.(*types.Named)
+	if !ok || named.Obj() == nil {
+		return false
+	}
+	return named.Obj().Name() == "noCopy" || named.Obj().Name() == "NoCopy"
+}
+
+func containsCopySensitiveValue(t types.Type, seen map[types.Type]bool) bool {
 	if t == nil {
 		return false
 	}
@@ -51,7 +95,7 @@ func containsWaitGroupValue(t types.Type, seen map[types.Type]bool) bool {
 	}
 	seen[t] = true
 
-	if isSyncNamedType(t, "WaitGroup") {
+	if isSyncCopySensitiveType(t) {
 		return true
 	}
 
@@ -59,15 +103,19 @@ func containsWaitGroupValue(t types.Type, seen map[types.Type]bool) bool {
 	case *types.Pointer:
 		return false
 	case *types.Named:
-		return containsWaitGroupValue(tt.Underlying(), seen)
+		return containsCopySensitiveValue(tt.Underlying(), seen)
 	case *types.Struct:
 		for i := 0; i < tt.NumFields(); i++ {
-			if containsWaitGroupValue(tt.Field(i).Type(), seen) {
+			field := tt.Field(i)
+			if hasLockUnlockPair(field.Type()) {
+				return true
+			}
+			if containsCopySensitiveValue(field.Type(), seen) {
 				return true
 			}
 		}
 	case *types.Array:
-		return containsWaitGroupValue(tt.Elem(), seen)
+		return containsCopySensitiveValue(tt.Elem(), seen)
 	}
 
 	return false

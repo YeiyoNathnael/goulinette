@@ -55,7 +55,7 @@ func (saf01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 					continue
 				}
 
-				if !containsSyncMutexValue(named, map[types.Type]bool{}) {
+				if !containsCopySensitiveValue(named, map[types.Type]bool{}) {
 					continue
 				}
 
@@ -67,9 +67,9 @@ func (saf01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				diagnostics = append(diagnostics, diag.Diagnostic{
 					RuleID:   "SAF-01",
 					Severity: diag.SeverityError,
-					Message:  "method " + name + " on type containing sync.Mutex/sync.RWMutex must use pointer receiver",
+					Message:  "method " + name + " on copy-sensitive type must use pointer receiver",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-					Hint:     "change receiver from value to pointer to avoid copying synchronization state",
+					Hint:     "change receiver from value to pointer to avoid copying synchronization/noCopy state",
 				})
 			}
 		}

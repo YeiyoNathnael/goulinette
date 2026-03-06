@@ -37,7 +37,7 @@ func TestClassifyReturnedErrorExpr(t *testing.T) {
 	}
 
 	errorsNew := &ast.CallExpr{
-		Fun: &ast.SelectorExpr{X: &ast.Ident{Name: "errors"}, Sel: &ast.Ident{Name: "New"}},
+		Fun:  &ast.SelectorExpr{X: &ast.Ident{Name: "errors"}, Sel: &ast.Ident{Name: "New"}},
 		Args: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: "\"x\""}},
 	}
 	if got := classifyReturnedErrorExpr(info, errorsNew); got != returnedErrorNonNil {
@@ -45,7 +45,7 @@ func TestClassifyReturnedErrorExpr(t *testing.T) {
 	}
 
 	fmtErr := &ast.CallExpr{
-		Fun: &ast.SelectorExpr{X: &ast.Ident{Name: "fmt"}, Sel: &ast.Ident{Name: "Errorf"}},
+		Fun:  &ast.SelectorExpr{X: &ast.Ident{Name: "fmt"}, Sel: &ast.Ident{Name: "Errorf"}},
 		Args: []ast.Expr{&ast.BasicLit{Kind: token.STRING, Value: "\"x\""}},
 	}
 	if got := classifyReturnedErrorExpr(info, fmtErr); got != returnedErrorNonNil {

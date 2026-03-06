@@ -7,6 +7,7 @@ func Registry() []Rule {
 		NewFMT01(),
 		NewFMT02(),
 		NewFMT03(),
+		NewNAM01(),
 	}
 }
 

@@ -3,7 +3,9 @@ package rules
 import "strings"
 
 func Registry() []Rule {
-	return []Rule{}
+	return []Rule{
+		NewFMT01(),
+	}
 }
 
 func Select(all []Rule, chapters map[int]struct{}, includeRules map[string]struct{}, disableRules map[string]struct{}) []Rule {

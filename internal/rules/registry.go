@@ -28,6 +28,7 @@ func Registry() []Rule {
 		NewERR03(),
 		NewERR04(),
 		NewERR05(),
+		NewERR06(),
 	}
 }
 

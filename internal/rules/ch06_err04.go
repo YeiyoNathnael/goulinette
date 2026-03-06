@@ -10,25 +10,31 @@ import (
 
 type err04Rule struct{}
 
+const err04Chapter = 6
+
+// NewERR04 returns the ERR04 rule implementation.
 func NewERR04() Rule {
 	return err04Rule{}
 }
 
+// ID returns the rule identifier.
 func (err04Rule) ID() string {
-	return "ERR-04"
+	return ruleERR04
 }
 
+// Chapter returns the chapter number for this rule.
 func (err04Rule) Chapter() int {
-	return 6
+	return err04Chapter
 }
 
-func (err04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (err04Rule) Run(ctx Context) ([]diag.Finding, error) {
 	pkgs, err := loadTypedPackages(ctx.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pkg := range pkgs {
 		for _, syntaxFile := range pkg.Syntax {
 			ast.Inspect(syntaxFile, func(n ast.Node) bool {
@@ -54,8 +60,8 @@ func (err04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				}
 
 				pos := pkg.Fset.Position(bin.OpPos)
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "ERR-04",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleERR04,
 					Severity: diag.SeverityError,
 					Message:  "specific error values must be checked with errors.Is, not ==/!=",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

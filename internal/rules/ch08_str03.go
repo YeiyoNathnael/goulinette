@@ -5,32 +5,40 @@ import (
 	"go/types"
 	"strings"
 
-	"github.com/YeiyoNathnael/goulinette/internal/diag"
-
 	"golang.org/x/tools/go/packages"
+
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 type str03Rule struct{}
 
+const (
+	str03Chapter = 8
+)
+
+// NewSTR03 returns the STR03 rule implementation.
 func NewSTR03() Rule {
 	return str03Rule{}
 }
 
+// ID returns the rule identifier.
 func (str03Rule) ID() string {
-	return "STR-03"
+	return ruleSTR03
 }
 
+// Chapter returns the chapter number for this rule.
 func (str03Rule) Chapter() int {
-	return 8
+	return str03Chapter
 }
 
-func (str03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (str03Rule) Run(ctx Context) ([]diag.Finding, error) {
 	pkgs, err := loadTypedPackages(ctx.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pkg := range pkgs {
 		localIfaces := collectLocalInterfaces(pkg)
 		for _, syntaxFile := range pkg.Syntax {
@@ -61,8 +69,8 @@ func (str03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				}
 
 				pos := pkg.Fset.Position(fn.Name.Pos())
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "STR-03",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleSTR03,
 					Severity: diag.SeverityWarning,
 					Message:  "getter/setter methods should be avoided unless required by an interface",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -123,7 +131,7 @@ func methodUsedByAnyInterface(recvNamed *types.Named, methodName string, ifaces 
 		if iface == nil {
 			continue
 		}
-		hasMethod := false
+		var hasMethod bool
 		for i := 0; i < iface.NumMethods(); i++ {
 			if iface.Method(i).Name() == methodName {
 				hasMethod = true

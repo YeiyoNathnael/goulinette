@@ -16,17 +16,19 @@ type parsedFile struct {
 }
 
 var (
-	parsedFilesCacheMu sync.RWMutex
-	parsedFilesCache   = make(map[string][]parsedFile)
+	parsedFilesCacheMu sync.RWMutex = sync.RWMutex{}
+	parsedFilesCache   sync.Map     = sync.Map{}
 )
 
 func parseFiles(paths []string) ([]parsedFile, error) {
 	cacheKey := parsedFilesCacheKey(paths)
 
 	parsedFilesCacheMu.RLock()
-	if cached, ok := parsedFilesCache[cacheKey]; ok {
+	if cached, ok := parsedFilesCache.Load(cacheKey); ok {
 		parsedFilesCacheMu.RUnlock()
-		return cached, nil
+		if files, ok := cached.([]parsedFile); ok {
+			return files, nil
+		}
 	}
 	parsedFilesCacheMu.RUnlock()
 
@@ -41,7 +43,7 @@ func parseFiles(paths []string) ([]parsedFile, error) {
 	}
 
 	parsedFilesCacheMu.Lock()
-	parsedFilesCache[cacheKey] = parsed
+	parsedFilesCache.Store(cacheKey, parsed)
 	parsedFilesCacheMu.Unlock()
 
 	return parsed, nil
@@ -58,6 +60,9 @@ func parsedFilesCacheKey(paths []string) string {
 
 func clearParseFilesCache() {
 	parsedFilesCacheMu.Lock()
-	parsedFilesCache = make(map[string][]parsedFile)
+	parsedFilesCache.Range(func(key, value any) bool {
+		parsedFilesCache.Delete(key)
+		return true
+	})
 	parsedFilesCacheMu.Unlock()
 }

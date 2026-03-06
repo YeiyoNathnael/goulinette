@@ -8,25 +8,33 @@ import (
 
 type tst02Rule struct{}
 
+const (
+	tst02Chapter = 19
+)
+
+// NewTST02 returns the TST02 rule implementation.
 func NewTST02() Rule {
 	return tst02Rule{}
 }
 
+// ID returns the rule identifier.
 func (tst02Rule) ID() string {
-	return "TST-02"
+	return ruleTST02
 }
 
+// Chapter returns the chapter number for this rule.
 func (tst02Rule) Chapter() int {
-	return 19
+	return tst02Chapter
 }
 
-func (tst02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (tst02Rule) Run(ctx Context) ([]diag.Finding, error) {
 	files, err := collectTestFiles(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, tf := range files {
 		helperCandidates := make(map[string]tstFuncInfo)
 		topLevelCallers := make([]*ast.FuncDecl, 0)
@@ -75,16 +83,16 @@ func (tst02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 		}
 
 		for name, info := range helperCandidates {
-			used, _ := helperUsedByTests[name]
-			if !used {
+			used, ok := helperUsedByTests[name]
+			if !ok || !used {
 				continue
 			}
 			if firstStmtIsHelper(info.Node.Body, info.TestingParam) {
 				continue
 			}
 			pos := tf.FSet.Position(info.Node.Pos())
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "TST-02",
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ruleTST02,
 				Severity: diag.SeverityError,
 				Message:  "test helper must call t.Helper() as its first statement",
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -96,7 +104,7 @@ func (tst02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 	return diagnostics, nil
 }
 
-func tst02CheckSubtestLiterals(body *ast.BlockStmt, params map[string]bool, tf tstFile, diagnostics *[]diag.Diagnostic) {
+func tst02CheckSubtestLiterals(body *ast.BlockStmt, params map[string]bool, tf tstFile, diagnostics *[]diag.Finding) {
 	if body == nil || len(params) == 0 {
 		return
 	}
@@ -117,8 +125,8 @@ func tst02CheckSubtestLiterals(body *ast.BlockStmt, params map[string]bool, tf t
 			return true
 		}
 		pos := tf.FSet.Position(lit.Pos())
-		*diagnostics = append(*diagnostics, diag.Diagnostic{
-			RuleID:   "TST-02",
+		*diagnostics = append(*diagnostics, diag.Finding{
+			RuleID:   ruleTST02,
 			Severity: diag.SeverityError,
 			Message:  "subtest function must call t.Helper() as its first statement",
 			Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

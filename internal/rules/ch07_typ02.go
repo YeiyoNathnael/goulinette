@@ -10,25 +10,31 @@ import (
 
 type typ02Rule struct{}
 
+const typ02Chapter = 7
+
+// NewTYP02 returns the TYP02 rule implementation.
 func NewTYP02() Rule {
 	return typ02Rule{}
 }
 
+// ID returns the rule identifier.
 func (typ02Rule) ID() string {
-	return "TYP-02"
+	return ruleTYP02
 }
 
+// Chapter returns the chapter number for this rule.
 func (typ02Rule) Chapter() int {
-	return 7
+	return typ02Chapter
 }
 
-func (typ02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (typ02Rule) Run(ctx Context) ([]diag.Finding, error) {
 	pkgs, err := loadTypedPackages(ctx.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pkg := range pkgs {
 		for _, syntaxFile := range pkg.Syntax {
 			for _, decl := range syntaxFile.Decls {
@@ -64,8 +70,8 @@ func (typ02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				}
 
 				pos := pkg.Fset.Position(fn.Name.Pos())
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "TYP-02",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleTYP02,
 					Severity: diag.SeverityWarning,
 					Message:  "constructor-shaped function should return a struct value instead of populating a pointer parameter",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -112,7 +118,7 @@ func findStructPointerParamName(fn *ast.FuncDecl, info *types.Info) string {
 }
 
 func assignsToParamFields(body *ast.BlockStmt, paramName string) bool {
-	found := false
+	var found bool
 	ast.Inspect(body, func(n ast.Node) bool {
 		if found {
 			return false

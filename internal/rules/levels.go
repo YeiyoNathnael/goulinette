@@ -2,40 +2,48 @@ package rules
 
 import "strings"
 
+const (
+	minLevel        = 0
+	defaultLevelOne = 1
+	defaultLevelTwo = 2
+	maxLevelThree   = 3
+)
+
 var level0Rules = []string{
-	"FMT-01", "FMT-02", "FUN-02", "FUN-04", "ERR-04", "ERR-05", "ERR-07", "TYP-03", "TYP-04", "TYP-05",
-	"CTL-04", "CTX-02", "CTX-03", "RES-01", "SAF-01", "SAF-02", "CER-02", "CER-03", "CON-03",
+	ruleFMT01, ruleFMT02, ruleFUN02, ruleFUN04, ruleERR04, ruleERR05, ruleERR07, ruleTYP03, ruleTYP04, ruleTYP05,
+	ruleCTL04, ruleCTX02, ruleCTX03, ruleRES01, ruleSAF01, ruleSAF02, ruleCER02, ruleCER03, ruleCON03,
 }
 
 var level1Rules = []string{
-	"FUN-01", "ERR-01", "ERR-02", "ERR-06", "ERR-08", "TYP-06", "STR-01", "STR-02", "STR-04", "CTL-02",
-	"CTL-03", "VAR-01", "VAR-04", "NAM-01", "NAM-02", "NAM-06", "NAM-07", "DOC-04", "IMP-01", "IMP-02",
-	"CTX-01", "CON-01", "CON-02", "CER-01", "RES-02", "TST-02",
+	ruleFUN01, ruleERR01, ruleERR02, ruleERR06, ruleERR08, ruleTYP06, ruleSTR01, ruleSTR02, ruleSTR04, ruleCTL02,
+	ruleCTL03, ruleVAR01, ruleVAR04, ruleNAM01, ruleNAM02, ruleNAM06, ruleNAM07, ruleDOC04, ruleIMP01, ruleIMP02,
+	ruleCTX01, ruleCON01, ruleCON02, ruleCER01, ruleRES02, ruleTST02,
 }
 
 var level2Rules = []string{
-	"FMT-03", "FUN-03", "ERR-03", "TYP-01", "TYP-02", "TYP-07", "STR-03", "VAR-02", "VAR-03", "NAM-03",
-	"NAM-04", "NAM-05", "DOC-01", "DOC-02", "DOC-03", "DOC-05", "CTL-01", "SLC-01", "IMP-03", "MAG-01",
-	"MAG-02", "TST-01", "TST-03",
+	ruleFMT03, ruleFUN03, ruleERR03, ruleTYP01, ruleTYP02, ruleTYP07, ruleSTR03, ruleVAR02, ruleVAR03, ruleNAM03,
+	ruleNAM04, ruleNAM05, ruleDOC01, ruleDOC02, ruleDOC03, ruleDOC05, ruleCTL01, ruleSLC01, ruleIMP03, ruleMAG01,
+	ruleMAG02, ruleTST01, ruleTST03,
 }
 
 var level3Rules = []string{
-	"LIM-01", "LIM-02", "LIM-03", "LIM-04", "CTX-04",
+	ruleLIM01, ruleLIM02, ruleLIM03, ruleLIM04, ruleCTX04,
 }
 
-func RulesForLevel(level int) map[string]struct{} {
+// IDsForLevel documents this exported function.
+func IDsForLevel(level int) map[string]struct{} {
 	out := make(map[string]struct{})
-	if level < 0 {
+	if level < minLevel {
 		return out
 	}
 	addRuleIDs(out, level0Rules)
-	if level >= 1 {
+	if level >= defaultLevelOne {
 		addRuleIDs(out, level1Rules)
 	}
-	if level >= 2 {
+	if level >= defaultLevelTwo {
 		addRuleIDs(out, level2Rules)
 	}
-	if level >= 3 {
+	if level >= maxLevelThree {
 		addRuleIDs(out, level3Rules)
 	}
 	return out

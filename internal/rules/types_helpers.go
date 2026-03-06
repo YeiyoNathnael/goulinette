@@ -8,15 +8,17 @@ import (
 )
 
 var (
-	typedPackagesCacheMu sync.RWMutex
-	typedPackagesCache   = make(map[string][]*packages.Package)
+	typedPackagesCacheMu sync.RWMutex = sync.RWMutex{}
+	typedPackagesCache   sync.Map     = sync.Map{}
 )
 
 func loadTypedPackages(root string) ([]*packages.Package, error) {
 	typedPackagesCacheMu.RLock()
-	if cached, ok := typedPackagesCache[root]; ok {
+	if cached, ok := typedPackagesCache.Load(root); ok {
 		typedPackagesCacheMu.RUnlock()
-		return cached, nil
+		if pkgs, ok := cached.([]*packages.Package); ok {
+			return pkgs, nil
+		}
 	}
 	typedPackagesCacheMu.RUnlock()
 
@@ -44,7 +46,7 @@ func loadTypedPackages(root string) ([]*packages.Package, error) {
 	}
 
 	typedPackagesCacheMu.Lock()
-	typedPackagesCache[root] = pkgs
+	typedPackagesCache.Store(root, pkgs)
 	typedPackagesCacheMu.Unlock()
 
 	return pkgs, nil
@@ -52,6 +54,9 @@ func loadTypedPackages(root string) ([]*packages.Package, error) {
 
 func clearTypedPackagesCache() {
 	typedPackagesCacheMu.Lock()
-	typedPackagesCache = make(map[string][]*packages.Package)
+	typedPackagesCache.Range(func(key, value any) bool {
+		typedPackagesCache.Delete(key)
+		return true
+	})
 	typedPackagesCacheMu.Unlock()
 }

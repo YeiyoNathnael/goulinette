@@ -10,28 +10,38 @@ import (
 
 type lim04Rule struct{}
 
+const (
+	lim04Chapter      = 13
+	lim04MaxFileLines = 500
+	lim04TestFileSfx  = "_test.go"
+)
+
+// NewLIM04 returns the LIM04 rule implementation.
 func NewLIM04() Rule {
 	return lim04Rule{}
 }
 
+// ID returns the rule identifier.
 func (lim04Rule) ID() string {
-	return "LIM-04"
+	return ruleLIM04
 }
 
+// Chapter returns the chapter number for this rule.
 func (lim04Rule) Chapter() int {
-	return 13
+	return lim04Chapter
 }
 
-func (lim04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (lim04Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		filename := pf.Path
-		if strings.HasSuffix(filename, "_test.go") {
+		if strings.HasSuffix(filename, lim04TestFileSfx) {
 			continue
 		}
 		if isGeneratedSourceFile(filename, pf.File) {
@@ -43,13 +53,13 @@ func (lim04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 			return nil, err
 		}
 		lineCount := normalizedFileLineCount(string(content))
-		if lineCount <= 500 {
+		if lineCount <= lim04MaxFileLines {
 			continue
 		}
 
 		pos := pf.FSet.Position(pf.File.Package)
-		diagnostics = append(diagnostics, diag.Diagnostic{
-			RuleID:   "LIM-04",
+		diagnostics = append(diagnostics, diag.Finding{
+			RuleID:   ruleLIM04,
 			Severity: diag.SeverityWarning,
 			Message:  "source files should not exceed 500 lines",
 			Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

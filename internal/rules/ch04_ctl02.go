@@ -9,25 +9,31 @@ import (
 
 type ctl02Rule struct{}
 
+const ctl02Chapter = 4
+
+// NewCTL02 returns the CTL02 rule implementation.
 func NewCTL02() Rule {
 	return ctl02Rule{}
 }
 
+// ID returns the rule identifier.
 func (ctl02Rule) ID() string {
-	return "CTL-02"
+	return ruleCTL02
 }
 
+// Chapter returns the chapter number for this rule.
 func (ctl02Rule) Chapter() int {
-	return 4
+	return ctl02Chapter
 }
 
-func (ctl02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (ctl02Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		ast.Inspect(pf.File, func(n ast.Node) bool {
 			branch, ok := n.(*ast.BranchStmt)
@@ -36,8 +42,8 @@ func (ctl02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 			}
 
 			pos := pf.FSet.Position(branch.Pos())
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "CTL-02",
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ruleCTL02,
 				Severity: diag.SeverityError,
 				Message:  "fallthrough is forbidden",
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

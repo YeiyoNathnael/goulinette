@@ -6,15 +6,22 @@ import (
 	"testing"
 )
 
+const (
+	namTestFilePerms = 0o644
+	namWriteErrFmt   = "write %s: %v"
+	namSampleGoFile  = "sample.go"
+)
+
 func writeNAMFile(t *testing.T, dir, name, content string) string {
 	t.Helper()
 	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatalf("write %s: %v", name, err)
+	if err := os.WriteFile(path, []byte(content), namTestFilePerms); err != nil {
+		t.Fatalf(namWriteErrFmt, name, err)
 	}
 	return path
 }
 
+// TestNAM03ScopeProportionality documents this exported function.
 func TestNAM03ScopeProportionality(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -76,8 +83,9 @@ func f() {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			dir := t.TempDir()
-			file := writeNAMFile(t, dir, "sample.go", tc.source)
+			file := writeNAMFile(t, dir, namSampleGoFile, tc.source)
 
 			diags, err := NewNAM03().Run(Context{Files: []string{file}})
 			if err != nil {
@@ -90,6 +98,7 @@ func f() {
 	}
 }
 
+// TestNAM04PackageLevelDescriptiveNames documents this exported function.
 func TestNAM04PackageLevelDescriptiveNames(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -116,8 +125,9 @@ const userIdentifier = "x"
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			dir := t.TempDir()
-			file := writeNAMFile(t, dir, "sample.go", tc.source)
+			file := writeNAMFile(t, dir, namSampleGoFile, tc.source)
 
 			diags, err := NewNAM04().Run(Context{Files: []string{file}})
 			if err != nil {
@@ -130,6 +140,7 @@ const userIdentifier = "x"
 	}
 }
 
+// TestNAM05InterfaceErSuffix documents this exported function.
 func TestNAM05InterfaceErSuffix(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -139,6 +150,7 @@ func TestNAM05InterfaceErSuffix(t *testing.T) {
 		{
 			name: "interface without er suffix warns",
 			source: `package sample
+// Service documents this exported type.
 type Service interface { Run() }
 `,
 			wantCount: 1,
@@ -146,6 +158,7 @@ type Service interface { Run() }
 		{
 			name: "interface with er suffix passes",
 			source: `package sample
+// Runner documents this exported type.
 type Runner interface { Run() }
 `,
 			wantCount: 0,
@@ -154,8 +167,9 @@ type Runner interface { Run() }
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			dir := t.TempDir()
-			file := writeNAMFile(t, dir, "sample.go", tc.source)
+			file := writeNAMFile(t, dir, namSampleGoFile, tc.source)
 
 			diags, err := NewNAM05().Run(Context{Files: []string{file}})
 			if err != nil {

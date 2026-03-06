@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// TestHasMeaningfulZeroValue documents this exported function.
 func TestHasMeaningfulZeroValue(t *testing.T) {
 	tests := []struct {
 		name string
@@ -21,6 +22,7 @@ func TestHasMeaningfulZeroValue(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			if got := hasMeaningfulZeroValue(tc.typ); got != tc.want {
 				t.Fatalf("hasMeaningfulZeroValue() = %v, want %v", got, tc.want)
 			}

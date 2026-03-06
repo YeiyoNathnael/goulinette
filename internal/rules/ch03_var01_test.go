@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// TestIsZeroLiteralExpr documents this exported function.
 func TestIsZeroLiteralExpr(t *testing.T) {
 	tests := []struct {
 		name string
@@ -21,6 +22,7 @@ func TestIsZeroLiteralExpr(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			got := isZeroLiteralExpr(tc.expr)
 			if got != tc.want {
 				t.Fatalf("isZeroLiteralExpr() = %v, want %v", got, tc.want)

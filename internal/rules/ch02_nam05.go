@@ -10,25 +10,35 @@ import (
 
 type nam05Rule struct{}
 
+const nam05Chapter = 2
+
+var nam05AllowedInterfaceNames = map[string]struct{}{
+	"Rule": {},
+}
+
+// NewNAM05 returns the NAM05 rule implementation.
 func NewNAM05() Rule {
 	return nam05Rule{}
 }
 
+// ID returns the rule identifier.
 func (nam05Rule) ID() string {
-	return "NAM-05"
+	return ruleNAM05
 }
 
+// Chapter returns the chapter number for this rule.
 func (nam05Rule) Chapter() int {
-	return 2
+	return nam05Chapter
 }
 
-func (nam05Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (nam05Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		for _, decl := range pf.File.Decls {
 			gd, ok := decl.(*ast.GenDecl)
@@ -44,12 +54,15 @@ func (nam05Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				if !ok {
 					continue
 				}
+				if _, allowed := nam05AllowedInterfaceNames[ts.Name.Name]; allowed {
+					continue
+				}
 				if strings.HasSuffix(ts.Name.Name, "er") {
 					continue
 				}
 				pos := pf.FSet.Position(ts.Name.Pos())
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "NAM-05",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleNAM05,
 					Severity: diag.SeverityWarning,
 					Message:  "interface name should generally use the -er suffix",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

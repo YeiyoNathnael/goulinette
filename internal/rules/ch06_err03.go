@@ -11,94 +11,125 @@ import (
 
 type err03Rule struct{}
 
+const err03Chapter = 6
+
+// NewERR03 returns the ERR03 rule implementation.
 func NewERR03() Rule {
 	return err03Rule{}
 }
 
+// ID returns the rule identifier.
 func (err03Rule) ID() string {
-	return "ERR-03"
+	return ruleERR03
 }
 
+// Chapter returns the chapter number for this rule.
 func (err03Rule) Chapter() int {
-	return 6
+	return err03Chapter
 }
 
-func (err03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (err03Rule) Run(ctx Context) ([]diag.Finding, error) {
 	pkgs, err := loadTypedPackages(ctx.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pkg := range pkgs {
 		for _, syntaxFile := range pkg.Syntax {
 			for _, decl := range syntaxFile.Decls {
-				fn, ok := decl.(*ast.FuncDecl)
-				if !ok || fn.Body == nil || fn.Type == nil {
-					continue
-				}
-
-				obj, ok := pkg.TypesInfo.Defs[fn.Name].(*types.Func)
-				if !ok {
-					continue
-				}
-				sig, ok := obj.Type().(*types.Signature)
-				if !ok {
-					continue
-				}
-
-				results := sig.Results()
-				if results == nil || results.Len() == 0 {
-					continue
-				}
-				errorIdx := results.Len() - 1
-				if !isErrorType(results.At(errorIdx).Type()) {
-					continue
-				}
-
-				for _, ret := range collectReturnsExcludingNestedFuncs(fn.Body) {
-					if len(ret.Results) != results.Len() {
-						continue
-					}
-
-					errExpr := ret.Results[errorIdx]
-					errState := classifyReturnedErrorExpr(pkg.TypesInfo, errExpr)
-					if errState == returnedErrorNil {
-						continue
-					}
-
-					violations := make([]int, 0)
-					for i := 0; i < results.Len()-1; i++ {
-						if !isZeroValueExprForType(pkg.TypesInfo, ret.Results[i], results.At(i).Type()) {
-							violations = append(violations, i)
-						}
-					}
-					if len(violations) == 0 {
-						continue
-					}
-
-					severity := diag.SeverityWarning
-					message := "when returning a non-nil error, all other return values must be zero values"
-					hint := "return zero values in all non-error positions on error paths"
-					if errState == returnedErrorUnknown {
-						message = "possible non-zero values returned alongside a potentially non-nil error"
-						hint = "if error can be non-nil here, ensure all other return values are zero"
-					}
-
-					pos := pkg.Fset.Position(ret.Return)
-					diagnostics = append(diagnostics, diag.Diagnostic{
-						RuleID:   "ERR-03",
-						Severity: severity,
-						Message:  message,
-						Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-						Hint:     hint,
-					})
-				}
+				diagnostics = append(diagnostics, err03DiagnosticsForDecl(pkg.Fset, pkg.TypesInfo, decl)...)
 			}
 		}
 	}
 
 	return diagnostics, nil
+}
+
+func err03DiagnosticsForDecl(fset *token.FileSet, info *types.Info, decl ast.Decl) []diag.Finding {
+	fn, ok := decl.(*ast.FuncDecl)
+	if !ok || fn.Body == nil || fn.Type == nil || fn.Name == nil {
+		return nil
+	}
+
+	sig, errorIdx, ok := err03SignatureWithErrorLast(info, fn)
+	if !ok {
+		return nil
+	}
+
+	diagnostics := make([]diag.Finding, 0)
+	for _, ret := range collectReturnsExcludingNestedFuncs(fn.Body) {
+		finding, ok := err03FindingForReturn(fset, info, sig, errorIdx, ret)
+		if ok {
+			diagnostics = append(diagnostics, finding)
+		}
+	}
+
+	return diagnostics
+}
+
+func err03SignatureWithErrorLast(info *types.Info, fn *ast.FuncDecl) (*types.Signature, int, bool) {
+	obj, ok := info.Defs[fn.Name].(*types.Func)
+	if !ok {
+		return nil, 0, false
+	}
+	sig, ok := obj.Type().(*types.Signature)
+	if !ok {
+		return nil, 0, false
+	}
+
+	results := sig.Results()
+	if results == nil || results.Len() == 0 {
+		return nil, 0, false
+	}
+
+	errorIdx := results.Len() - 1
+	if !isErrorType(results.At(errorIdx).Type()) {
+		return nil, 0, false
+	}
+
+	return sig, errorIdx, true
+}
+
+func err03FindingForReturn(fset *token.FileSet, info *types.Info, sig *types.Signature, errorIdx int, ret *ast.ReturnStmt) (diag.Finding, bool) {
+	results := sig.Results()
+	if len(ret.Results) != results.Len() {
+		return diag.Finding{}, false
+	}
+
+	errState := classifyReturnedErrorExpr(info, ret.Results[errorIdx])
+	if errState == returnedErrorNil {
+		return diag.Finding{}, false
+	}
+
+	var hasNonZero bool
+	for i := 0; i < results.Len()-1; i++ {
+		if !isZeroValueExprForType(info, ret.Results[i], results.At(i).Type()) {
+			hasNonZero = true
+			break
+		}
+	}
+	if !hasNonZero {
+		return diag.Finding{}, false
+	}
+
+	severity := diag.SeverityWarning
+	message := "when returning a non-nil error, all other return values must be zero values"
+	hint := "return zero values in all non-error positions on error paths"
+	if errState == returnedErrorUnknown {
+		message = "possible non-zero values returned alongside a potentially non-nil error"
+		hint = "if error can be non-nil here, ensure all other return values are zero"
+	}
+
+	pos := fset.Position(ret.Return)
+	return diag.Finding{
+		RuleID:   ruleERR03,
+		Severity: severity,
+		Message:  message,
+		Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
+		Hint:     hint,
+	}, true
 }
 
 type returnedErrorState int
@@ -134,8 +165,7 @@ func collectReturnsExcludingNestedFuncs(body *ast.BlockStmt) []*ast.ReturnStmt {
 		return out
 	}
 
-	var walk func(ast.Node)
-	walk = func(n ast.Node) {
+	walk := func(n ast.Node) {
 		if n == nil {
 			return
 		}
@@ -145,6 +175,8 @@ func collectReturnsExcludingNestedFuncs(body *ast.BlockStmt) []*ast.ReturnStmt {
 		case *ast.ReturnStmt:
 			out = append(out, x)
 			return
+		default:
+			// no-op
 		}
 
 		ast.Inspect(n, func(child ast.Node) bool {
@@ -208,6 +240,8 @@ func isZeroValueExprForType(info *types.Info, expr ast.Expr, expected types.Type
 		switch expected.Underlying().(type) {
 		case *types.Struct, *types.Array:
 			return true
+		default:
+			// no-op
 		}
 	}
 

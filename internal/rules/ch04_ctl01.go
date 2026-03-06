@@ -9,25 +9,34 @@ import (
 
 type ctl01Rule struct{}
 
+const (
+	ctl01Chapter       = 4
+	ctl01MinChainCount = 3
+)
+
+// NewCTL01 returns the CTL01 rule implementation.
 func NewCTL01() Rule {
 	return ctl01Rule{}
 }
 
+// ID returns the rule identifier.
 func (ctl01Rule) ID() string {
-	return "CTL-01"
+	return ruleCTL01
 }
 
+// Chapter returns the chapter number for this rule.
 func (ctl01Rule) Chapter() int {
-	return 4
+	return ctl01Chapter
 }
 
-func (ctl01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (ctl01Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		ast.Inspect(pf.File, func(n ast.Node) bool {
 			ifStmt, ok := n.(*ast.IfStmt)
@@ -40,10 +49,10 @@ func (ctl01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				return true
 			}
 
-			if branches >= 3 {
+			if branches >= ctl01MinChainCount {
 				pos := pf.FSet.Position(ifStmt.If)
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "CTL-01",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleCTL01,
 					Severity: diag.SeverityWarning,
 					Message:  "if/else-if chain with shared subject should use a switch",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -59,8 +68,8 @@ func (ctl01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 }
 
 func extractComparableIfChain(root *ast.IfStmt) (int, string, bool) {
-	count := 0
-	common := ""
+	var count int
+	var common string
 	current := root
 
 	for current != nil {

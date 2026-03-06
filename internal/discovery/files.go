@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// GoFiles documents this exported function.
 func GoFiles(root string) ([]string, error) {
 	paths := make([]string, 0, 128)
 

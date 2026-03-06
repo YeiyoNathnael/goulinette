@@ -3,7 +3,6 @@ package rules
 import (
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"go/types"
 	"os"
@@ -12,6 +11,29 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/packages"
+)
+
+const (
+	tstPrefixTest      = "Test"
+	tstPrefixBenchmark = "Benchmark"
+	tstPrefixExample   = "Example"
+	tstPkgTesting      = "testing"
+	tstTestingTName    = "T"
+	tstTestingTBName   = "TB"
+	tstPkgTime         = "time"
+	tstFnSleep         = "Sleep"
+	tstFnError         = "Error"
+	tstFnErrorf        = "Errorf"
+	tstFnFatal         = "Fatal"
+	tstFnFatalf        = "Fatalf"
+	tstFnLog           = "Log"
+	tstFnLogf          = "Logf"
+	tstFnHelper        = "Helper"
+	tstDirGit          = ".git"
+	tstDirVendor       = "vendor"
+	tstImportBlank     = "_"
+	tstImportDot       = "."
+	tstAllPackages     = "./..."
 )
 
 type tstFile struct {
@@ -65,7 +87,7 @@ func collectTestFiles(ctx Context) ([]tstFile, error) {
 		}
 		if d.IsDir() {
 			base := filepath.Base(path)
-			if base == ".git" || base == "vendor" {
+			if base == tstDirGit || base == tstDirVendor {
 				return filepath.SkipDir
 			}
 			return nil
@@ -109,7 +131,7 @@ func collectImportAliases(file *ast.File) (map[string]string, map[string]bool) {
 			continue
 		}
 		path := strings.Trim(imp.Path.Value, "\"")
-		name := ""
+		var name string
 		if imp.Name != nil {
 			name = imp.Name.Name
 		}
@@ -119,9 +141,9 @@ func collectImportAliases(file *ast.File) (map[string]string, map[string]bool) {
 			if len(parts) > 0 {
 				aliases[parts[len(parts)-1]] = path
 			}
-		case ".":
+		case tstImportDot:
 			dots[path] = true
-		case "_":
+		case tstImportBlank:
 			// ignore blank imports
 		default:
 			aliases[name] = path
@@ -131,18 +153,18 @@ func collectImportAliases(file *ast.File) (map[string]string, map[string]bool) {
 }
 
 func isTopLevelTestLike(name string) bool {
-	return strings.HasPrefix(name, "Test") || strings.HasPrefix(name, "Benchmark") || strings.HasPrefix(name, "Example")
+	return strings.HasPrefix(name, tstPrefixTest) || strings.HasPrefix(name, tstPrefixBenchmark) || strings.HasPrefix(name, tstPrefixExample)
 }
 
 func isRealTest(name string) bool {
-	return strings.HasPrefix(name, "Test")
+	return strings.HasPrefix(name, tstPrefixTest)
 }
 
 func testSubject(name string) string {
 	if !isRealTest(name) {
 		return ""
 	}
-	base := strings.TrimPrefix(name, "Test")
+	base := strings.TrimPrefix(name, tstPrefixTest)
 	if base == "" {
 		return ""
 	}
@@ -186,9 +208,9 @@ func isTestingParamTypeExpr(expr ast.Expr, aliases map[string]string) bool {
 	if expr == nil {
 		return false
 	}
-	switch t := expr.(type) {
+	switch typeExpr := expr.(type) {
 	case *ast.StarExpr:
-		sel, ok := t.X.(*ast.SelectorExpr)
+		sel, ok := typeExpr.X.(*ast.SelectorExpr)
 		if !ok {
 			return false
 		}
@@ -196,15 +218,21 @@ func isTestingParamTypeExpr(expr ast.Expr, aliases map[string]string) bool {
 		if !ok || sel.Sel == nil {
 			return false
 		}
-		alias, _ := aliases[id.Name]
-		return alias == "testing" && sel.Sel.Name == "T"
-	case *ast.SelectorExpr:
-		id, ok := t.X.(*ast.Ident)
-		if !ok || t.Sel == nil {
+		alias, ok := aliases[id.Name]
+		if !ok {
 			return false
 		}
-		alias, _ := aliases[id.Name]
-		return alias == "testing" && t.Sel.Name == "TB"
+		return alias == tstPkgTesting && sel.Sel.Name == tstTestingTName
+	case *ast.SelectorExpr:
+		id, ok := typeExpr.X.(*ast.Ident)
+		if !ok || typeExpr.Sel == nil {
+			return false
+		}
+		alias, ok := aliases[id.Name]
+		if !ok {
+			return false
+		}
+		return alias == tstPkgTesting && typeExpr.Sel.Name == tstTestingTBName
 	default:
 		return false
 	}
@@ -214,7 +242,7 @@ func callsTestingMethods(body *ast.BlockStmt, params map[string]bool) bool {
 	if body == nil || len(params) == 0 {
 		return false
 	}
-	found := false
+	var found bool
 	ast.Inspect(body, func(n ast.Node) bool {
 		if found {
 			return false
@@ -231,12 +259,12 @@ func callsTestingMethods(body *ast.BlockStmt, params map[string]bool) bool {
 		if !ok {
 			return true
 		}
-		active, _ := params[recv.Name]
-		if !active {
+		active, ok := params[recv.Name]
+		if !ok || !active {
 			return true
 		}
 		switch sel.Sel.Name {
-		case "Error", "Errorf", "Fatal", "Fatalf", "Log", "Logf":
+		case tstFnError, tstFnErrorf, tstFnFatal, tstFnFatalf, tstFnLog, tstFnLogf:
 			found = true
 			return false
 		default:
@@ -259,15 +287,15 @@ func firstStmtIsHelper(body *ast.BlockStmt, params map[string]bool) bool {
 		return false
 	}
 	sel, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok || sel.Sel == nil || sel.Sel.Name != "Helper" || len(call.Args) != 0 {
+	if !ok || sel.Sel == nil || sel.Sel.Name != tstFnHelper || len(call.Args) != 0 {
 		return false
 	}
 	recv, ok := sel.X.(*ast.Ident)
 	if !ok {
 		return false
 	}
-	active, _ := params[recv.Name]
-	return active
+	active, ok := params[recv.Name]
+	return ok && active
 }
 
 func isTRunCall(call *ast.CallExpr, params map[string]bool) bool {
@@ -282,11 +310,8 @@ func isTRunCall(call *ast.CallExpr, params map[string]bool) bool {
 	if !ok {
 		return false
 	}
-	active, _ := params[recv.Name]
-	if !active {
-		return false
-	}
-	return true
+	active, ok := params[recv.Name]
+	return ok && active
 }
 
 func loadTypedPackagesWithTests(root string) ([]*packages.Package, error) {
@@ -305,7 +330,7 @@ func loadTypedPackagesWithTests(root string) ([]*packages.Package, error) {
 		Mode:  mode,
 		Dir:   root,
 		Tests: true,
-	}, "./...")
+	}, tstAllPackages)
 	if err != nil {
 		return nil, err
 	}
@@ -329,12 +354,14 @@ func isTimeSleepCallTyped(call *ast.CallExpr, info *types.Info) bool {
 		}
 	case *ast.Ident:
 		obj = info.Uses[fn]
+	default:
+		// no-op
 	}
 	f, ok := obj.(*types.Func)
 	if !ok || f.Pkg() == nil {
 		return false
 	}
-	return f.Pkg().Path() == "time" && f.Name() == "Sleep"
+	return f.Pkg().Path() == tstPkgTime && f.Name() == tstFnSleep
 }
 
 func isTimeSleepCallAST(call *ast.CallExpr, aliases map[string]string, dots map[string]bool) bool {
@@ -343,31 +370,25 @@ func isTimeSleepCallAST(call *ast.CallExpr, aliases map[string]string, dots map[
 	}
 	switch fn := call.Fun.(type) {
 	case *ast.SelectorExpr:
-		if fn.Sel == nil || fn.Sel.Name != "Sleep" {
+		if fn.Sel == nil || fn.Sel.Name != tstFnSleep {
 			return false
 		}
 		recv, ok := fn.X.(*ast.Ident)
 		if !ok {
 			return false
 		}
-		alias, _ := aliases[recv.Name]
-		return alias == "time"
-	case *ast.Ident:
-		if fn.Name != "Sleep" {
+		alias, ok := aliases[recv.Name]
+		if !ok {
 			return false
 		}
-		dot, _ := dots["time"]
-		return dot
+		return alias == tstPkgTime
+	case *ast.Ident:
+		if fn.Name != tstFnSleep {
+			return false
+		}
+		dot, ok := dots[tstPkgTime]
+		return ok && dot
 	default:
 		return false
 	}
-}
-
-func parseSingleFile(path string) (*ast.File, *token.FileSet, error) {
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
-	if err != nil {
-		return nil, nil, err
-	}
-	return file, fset, nil
 }

@@ -7,7 +7,16 @@ import (
 	"time"
 )
 
-type Config struct {
+const (
+	formatText     = "text"
+	formatJSON     = "json"
+	flagTimeout    = "timeout"
+	defaultWorkers = 4
+	maxStrictLevel = 3
+)
+
+// Settings documents this exported type.
+type Settings struct {
 	Root             string
 	Format           string
 	Level            int
@@ -20,39 +29,40 @@ type Config struct {
 	Timeout          time.Duration
 }
 
-func ParseFlags(args []string) (Config, error) {
+// ParseFlags documents this exported function.
+func ParseFlags(args []string) (Settings, error) {
 	fs := flag.NewFlagSet("goulinette", flag.ContinueOnError)
 
 	var chapterCSV string
 	var ruleCSV string
 	var disableCSV string
 
-	cfg := Config{}
+	cfg := Settings{}
 	fs.StringVar(&cfg.Root, "root", ".", "root directory to scan")
-	fs.StringVar(&cfg.Format, "format", "text", "output format: text|json")
+	fs.StringVar(&cfg.Format, "format", formatText, "output format: text|json")
 	fs.IntVar(&cfg.Level, "level", 1, "strictness level: 0 (bugs) to 3 (maximum strictness)")
 	fs.StringVar(&chapterCSV, "chapter", "", "comma-separated chapter numbers")
 	fs.StringVar(&ruleCSV, "rule", "", "comma-separated rule IDs")
 	fs.StringVar(&disableCSV, "disable", "", "comma-separated rule IDs to disable")
 	fs.BoolVar(&cfg.WarningsAsErrors, "warnings-as-errors", false, "treat warnings as errors")
 	fs.BoolVar(&cfg.StrictTools, "strict-tools", false, "fail when required external tools are missing")
-	fs.IntVar(&cfg.MaxWorkers, "max-workers", 4, "max analysis workers")
-	fs.DurationVar(&cfg.Timeout, "timeout", 2*time.Minute, "command timeout")
+	fs.IntVar(&cfg.MaxWorkers, "max-workers", defaultWorkers, "max analysis workers")
+	fs.DurationVar(&cfg.Timeout, flagTimeout, 2*time.Minute, "command timeout")
 
 	if err := fs.Parse(args); err != nil {
-		return Config{}, err
+		return Settings{}, err
 	}
 
-	if cfg.Format != "text" && cfg.Format != "json" {
-		return Config{}, fmt.Errorf("invalid --format %q (expected text or json)", cfg.Format)
+	if cfg.Format != formatText && cfg.Format != formatJSON {
+		return Settings{}, fmt.Errorf("invalid --format %q (expected text or json)", cfg.Format)
 	}
-	if cfg.Level < 0 || cfg.Level > 3 {
-		return Config{}, fmt.Errorf("invalid --level %d (expected 0..3)", cfg.Level)
+	if cfg.Level < 0 || cfg.Level > maxStrictLevel {
+		return Settings{}, fmt.Errorf("invalid --level %d (expected 0..%d)", cfg.Level, maxStrictLevel)
 	}
 
 	chapters, err := parseChapters(chapterCSV)
 	if err != nil {
-		return Config{}, err
+		return Settings{}, err
 	}
 
 	cfg.Chapters = chapters

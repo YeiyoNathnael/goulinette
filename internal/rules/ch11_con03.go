@@ -11,25 +11,33 @@ import (
 
 type con03Rule struct{}
 
+const (
+	con03Chapter = 11
+)
+
+// NewCON03 returns the CON03 rule implementation.
 func NewCON03() Rule {
 	return con03Rule{}
 }
 
+// ID returns the rule identifier.
 func (con03Rule) ID() string {
-	return "CON-03"
+	return ruleCON03
 }
 
+// Chapter returns the chapter number for this rule.
 func (con03Rule) Chapter() int {
-	return 11
+	return con03Chapter
 }
 
-func (con03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (con03Rule) Run(ctx Context) ([]diag.Finding, error) {
 	pkgs, err := loadTypedPackages(ctx.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pkg := range pkgs {
 		for _, file := range pkg.Syntax {
 			for _, decl := range file.Decls {
@@ -71,9 +79,9 @@ func analyzeChannelOwnership(body *ast.BlockStmt, info *types.Info) funcChannelA
 			return
 		}
 
-		switch n := node.(type) {
+		switch currentNode := node.(type) {
 		case *ast.GoStmt:
-			if lit, ok := n.Call.Fun.(*ast.FuncLit); ok {
+			if lit, ok := currentNode.Call.Fun.(*ast.FuncLit); ok {
 				childID := nextContextID
 				nextContextID++
 				walk(lit.Body, childID)
@@ -81,7 +89,7 @@ func analyzeChannelOwnership(body *ast.BlockStmt, info *types.Info) funcChannelA
 			return
 
 		case *ast.SendStmt:
-			if chID, ok := channelIdentity(n.Chan, info); ok {
+			if chID, ok := channelIdentity(currentNode.Chan, info); ok {
 				if _, exists := result.writesByChannel[chID]; !exists {
 					result.writesByChannel[chID] = make(map[int]bool)
 				}
@@ -89,14 +97,16 @@ func analyzeChannelOwnership(body *ast.BlockStmt, info *types.Info) funcChannelA
 			}
 
 		case *ast.CallExpr:
-			if isWaitGroupWaitCall(n, info) {
+			if isWaitGroupWaitCall(currentNode, info) {
 				result.hasWaitCall = true
 			}
-			if chExpr, ok := closeCallTarget(n); ok {
+			if chExpr, ok := closeCallTarget(currentNode); ok {
 				if chID, ok := channelIdentity(chExpr, info); ok {
-					result.closesByChannel[chID] = append(result.closesByChannel[chID], closeEvent{contextID: contextID, pos: n.Lparen})
+					result.closesByChannel[chID] = append(result.closesByChannel[chID], closeEvent{contextID: contextID, pos: currentNode.Lparen})
 				}
 			}
+		default:
+			// no-op
 		}
 
 		ast.Inspect(node, func(child ast.Node) bool {
@@ -134,22 +144,18 @@ func analyzeChannelOwnership(body *ast.BlockStmt, info *types.Info) funcChannelA
 	return result
 }
 
-func con03DiagnosticsForOwnership(fset *token.FileSet, analysis funcChannelAnalysis) []diag.Diagnostic {
-	diagnostics := make([]diag.Diagnostic, 0)
+func con03DiagnosticsForOwnership(fset *token.FileSet, analysis funcChannelAnalysis) []diag.Finding {
+	diagnostics := make([]diag.Finding, 0)
 
 	for chID, closes := range analysis.closesByChannel {
 		writers := analysis.writesByChannel[chID]
-		if len(writers) == 0 {
-			continue
-		}
-
 		multiWriter := len(writers) > 1
 		for _, closeEv := range closes {
 			wrote, ok := writers[closeEv.contextID]
 			if !ok || !wrote {
 				pos := fset.Position(closeEv.pos)
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "CON-03",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleCON03,
 					Severity: diag.SeverityError,
 					Message:  "channel appears to be closed by a different goroutine than the writer",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -159,10 +165,10 @@ func con03DiagnosticsForOwnership(fset *token.FileSet, analysis funcChannelAnaly
 
 			if multiWriter && !analysis.hasWaitCall {
 				pos := fset.Position(closeEv.pos)
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "CON-03",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleCON03,
 					Severity: diag.SeverityError,
-					Message:  "multiple goroutines write to channel without obvious WaitGroup coordination before close",
+					Message:  "channel with multiple writers must be closed after synchronization",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
 					Hint:     "use sync.WaitGroup and close channel only after wg.Wait()",
 				})

@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TestHasNamedReturns documents this exported function.
 func TestHasNamedReturns(t *testing.T) {
 	tests := []struct {
 		name string
@@ -27,12 +28,16 @@ func TestHasNamedReturns(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			fset := token.NewFileSet()
 			file, err := parser.ParseFile(fset, "x.go", tc.src, parser.ParseComments)
 			if err != nil {
 				t.Fatalf("parse failed: %v", err)
 			}
-			fn := file.Decls[0].(*ast.FuncDecl)
+			fn, ok := file.Decls[0].(*ast.FuncDecl)
+			if !ok {
+				t.Fatalf("expected func decl")
+			}
 			if got := hasNamedReturns(fn.Type); got != tc.want {
 				t.Fatalf("hasNamedReturns() = %v, want %v", got, tc.want)
 			}

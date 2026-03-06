@@ -8,20 +8,29 @@ import (
 	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
+const (
+	testFilePerms      = 0o644
+	writeFileFatalfFmt = "write %s: %v"
+	goModFileName      = "go.mod"
+	sampleGoFileName   = "sample.go"
+	minCON01Findings   = 3
+)
+
 func writeModuleFile(t *testing.T, dir, name, content string) string {
 	t.Helper()
 
 	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatalf("write %s: %v", name, err)
+	if err := os.WriteFile(path, []byte(content), testFilePerms); err != nil {
+		t.Fatalf(writeFileFatalfFmt, name, err)
 	}
 	return path
 }
 
-func TestCON01_ExportedAPIExposure(t *testing.T) {
+// TestCON01ExportedAPIExposure documents this exported function.
+func TestCON01ExportedAPIExposure(t *testing.T) {
 	dir := t.TempDir()
-	writeModuleFile(t, dir, "go.mod", "module example.com/con01\n\ngo 1.22\n")
-	writeModuleFile(t, dir, "sample.go", `package sample
+	_ = writeModuleFile(t, dir, goModFileName, "module example.com/con01\n\ngo 1.22\n")
+	_ = writeModuleFile(t, dir, sampleGoFileName, `package sample
 
 import "sync"
 
@@ -29,14 +38,17 @@ type inner struct {
 	mu sync.Mutex
 }
 
+// Public documents this exported type.
 type Public struct {
 	inner
 }
 
+// Exported documents this exported function.
 func Exported(ch chan int) Public {
 	return Public{}
 }
 
+// ReturnChan documents this exported function.
 func ReturnChan() chan int {
 	return nil
 }
@@ -46,12 +58,13 @@ func ReturnChan() chan int {
 	if err != nil {
 		t.Fatalf("run CON-01: %v", err)
 	}
-	if len(diags) < 3 {
+	if len(diags) < minCON01Findings {
 		t.Fatalf("expected at least 3 CON-01 diagnostics, got %d", len(diags))
 	}
 }
 
-func TestCON02_HeuristicCancellationSignals(t *testing.T) {
+// TestCON02HeuristicCancellationSignals documents this exported function.
+func TestCON02HeuristicCancellationSignals(t *testing.T) {
 	tests := []struct {
 		name      string
 		source    string
@@ -98,9 +111,10 @@ func f(ctx context.Context) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			dir := t.TempDir()
-			writeModuleFile(t, dir, "go.mod", "module example.com/con02\n\ngo 1.22\n")
-			writeModuleFile(t, dir, "sample.go", tc.source)
+			_ = writeModuleFile(t, dir, goModFileName, "module example.com/con02\n\ngo 1.22\n")
+			_ = writeModuleFile(t, dir, sampleGoFileName, tc.source)
 
 			diags, err := NewCON02().Run(Context{Root: dir})
 			if err != nil {
@@ -116,7 +130,8 @@ func f(ctx context.Context) {
 	}
 }
 
-func TestCON03_ConservativeOwnershipWarnings(t *testing.T) {
+// TestCON03ConservativeOwnershipWarnings documents this exported function.
+func TestCON03ConservativeOwnershipWarnings(t *testing.T) {
 	tests := []struct {
 		name        string
 		source      string
@@ -159,9 +174,10 @@ func f(ch chan int) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			dir := t.TempDir()
-			writeModuleFile(t, dir, "go.mod", "module example.com/con03\n\ngo 1.22\n")
-			writeModuleFile(t, dir, "sample.go", tc.source)
+			_ = writeModuleFile(t, dir, goModFileName, "module example.com/con03\n\ngo 1.22\n")
+			_ = writeModuleFile(t, dir, sampleGoFileName, tc.source)
 
 			diags, err := NewCON03().Run(Context{Root: dir})
 			if err != nil {

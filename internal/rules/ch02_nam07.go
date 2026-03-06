@@ -9,25 +9,31 @@ import (
 
 type nam07Rule struct{}
 
+const nam07Chapter = 2
+
+// NewNAM07 returns the NAM07 rule implementation.
 func NewNAM07() Rule {
 	return nam07Rule{}
 }
 
+// ID returns the rule identifier.
 func (nam07Rule) ID() string {
-	return "NAM-07"
+	return ruleNAM07
 }
 
+// Chapter returns the chapter number for this rule.
 func (nam07Rule) Chapter() int {
-	return 2
+	return nam07Chapter
 }
 
-func (nam07Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (nam07Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		pkg := strings.ToLower(pf.File.Name.Name)
 		if pkg == "" {
@@ -38,8 +44,8 @@ func (nam07Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 			lname := strings.ToLower(named.Name.Name)
 			if strings.HasPrefix(lname, pkg) || strings.HasSuffix(lname, pkg) {
 				pos := pf.FSet.Position(named.Name.Pos())
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "NAM-07",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleNAM07,
 					Severity: diag.SeverityError,
 					Message:  "exported identifier must not stutter the package name",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -59,27 +65,53 @@ type namedIdent struct {
 func exportedDeclNames(file *ast.File) []namedIdent {
 	out := make([]namedIdent, 0)
 	for _, decl := range file.Decls {
-		switch d := decl.(type) {
-		case *ast.FuncDecl:
-			if d.Name != nil && d.Name.IsExported() {
-				out = append(out, namedIdent{Name: d.Name})
-			}
-		case *ast.GenDecl:
-			for _, spec := range d.Specs {
-				switch s := spec.(type) {
-				case *ast.TypeSpec:
-					if s.Name != nil && s.Name.IsExported() {
-						out = append(out, namedIdent{Name: s.Name})
-					}
-				case *ast.ValueSpec:
-					for _, n := range s.Names {
-						if n != nil && n.IsExported() {
-							out = append(out, namedIdent{Name: n})
-						}
-					}
-				}
-			}
-		}
+		out = append(out, exportedDeclNamesForDecl(decl)...)
 	}
 	return out
+}
+
+func exportedDeclNamesForDecl(decl ast.Decl) []namedIdent {
+	switch d := decl.(type) {
+	case *ast.FuncDecl:
+		return exportedNamesForFuncDecl(d)
+	case *ast.GenDecl:
+		return exportedNamesForGenDecl(d)
+	default:
+		return nil
+	}
+}
+
+func exportedNamesForFuncDecl(d *ast.FuncDecl) []namedIdent {
+	if d == nil || d.Name == nil || !d.Name.IsExported() {
+		return nil
+	}
+	return []namedIdent{{Name: d.Name}}
+}
+
+func exportedNamesForGenDecl(d *ast.GenDecl) []namedIdent {
+	out := make([]namedIdent, 0)
+	for _, spec := range d.Specs {
+		out = append(out, exportedNamesForSpec(spec)...)
+	}
+	return out
+}
+
+func exportedNamesForSpec(spec ast.Spec) []namedIdent {
+	switch s := spec.(type) {
+	case *ast.TypeSpec:
+		if s.Name == nil || !s.Name.IsExported() {
+			return nil
+		}
+		return []namedIdent{{Name: s.Name}}
+	case *ast.ValueSpec:
+		out := make([]namedIdent, 0)
+		for _, n := range s.Names {
+			if n != nil && n.IsExported() {
+				out = append(out, namedIdent{Name: n})
+			}
+		}
+		return out
+	default:
+		return nil
+	}
 }

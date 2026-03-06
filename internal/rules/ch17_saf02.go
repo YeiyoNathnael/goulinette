@@ -10,25 +10,33 @@ import (
 
 type saf02Rule struct{}
 
+const (
+	saf02Chapter = 17
+)
+
+// NewSAF02 returns the SAF02 rule implementation.
 func NewSAF02() Rule {
 	return saf02Rule{}
 }
 
+// ID returns the rule identifier.
 func (saf02Rule) ID() string {
-	return "SAF-02"
+	return ruleSAF02
 }
 
+// Chapter returns the chapter number for this rule.
 func (saf02Rule) Chapter() int {
-	return 17
+	return saf02Chapter
 }
 
-func (saf02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (saf02Rule) Run(ctx Context) ([]diag.Finding, error) {
 	pkgs, err := loadTypedPackages(ctx.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pkg := range pkgs {
 		if pkg == nil || pkg.TypesInfo == nil {
 			continue
@@ -45,6 +53,8 @@ func (saf02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 					diagnostics = append(diagnostics, saf02CheckDeclStmt(s, pkg.TypesInfo, pkg.Fset)...)
 				case *ast.ReturnStmt:
 					diagnostics = append(diagnostics, saf02CheckReturnStmt(s, pkg.TypesInfo, pkg.Fset)...)
+				default:
+					// no-op
 				}
 				return true
 			})
@@ -54,7 +64,7 @@ func (saf02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 	return diagnostics, nil
 }
 
-func saf02CheckGoStmt(gs *ast.GoStmt, info *types.Info, fset *token.FileSet) []diag.Diagnostic {
+func saf02CheckGoStmt(gs *ast.GoStmt, info *types.Info, fset *token.FileSet) []diag.Finding {
 	if gs == nil || gs.Call == nil || info == nil {
 		return nil
 	}
@@ -64,15 +74,15 @@ func saf02CheckGoStmt(gs *ast.GoStmt, info *types.Info, fset *token.FileSet) []d
 		return nil
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, arg := range call.Args {
 		argType := info.TypeOf(arg)
 		if !containsCopySensitiveValue(argType, map[types.Type]bool{}) {
 			continue
 		}
 		pos := fset.Position(arg.Pos())
-		diagnostics = append(diagnostics, diag.Diagnostic{
-			RuleID:   "SAF-02",
+		diagnostics = append(diagnostics, diag.Finding{
+			RuleID:   ruleSAF02,
 			Severity: diag.SeverityError,
 			Message:  "copy-sensitive sync/noCopy value must not be passed by value in goroutine launch",
 			Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -83,12 +93,12 @@ func saf02CheckGoStmt(gs *ast.GoStmt, info *types.Info, fset *token.FileSet) []d
 	return diagnostics
 }
 
-func saf02CheckAssignStmt(as *ast.AssignStmt, info *types.Info, fset *token.FileSet) []diag.Diagnostic {
+func saf02CheckAssignStmt(as *ast.AssignStmt, info *types.Info, fset *token.FileSet) []diag.Finding {
 	if as == nil || info == nil {
 		return nil
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for i, rhs := range as.Rhs {
 		if i >= len(as.Lhs) {
 			continue
@@ -105,8 +115,8 @@ func saf02CheckAssignStmt(as *ast.AssignStmt, info *types.Info, fset *token.File
 		}
 
 		pos := fset.Position(as.Pos())
-		diagnostics = append(diagnostics, diag.Diagnostic{
-			RuleID:   "SAF-02",
+		diagnostics = append(diagnostics, diag.Finding{
+			RuleID:   ruleSAF02,
 			Severity: diag.SeverityError,
 			Message:  "copy-sensitive sync/noCopy value must not be copied by assignment",
 			Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -117,7 +127,7 @@ func saf02CheckAssignStmt(as *ast.AssignStmt, info *types.Info, fset *token.File
 	return diagnostics
 }
 
-func saf02CheckDeclStmt(ds *ast.DeclStmt, info *types.Info, fset *token.FileSet) []diag.Diagnostic {
+func saf02CheckDeclStmt(ds *ast.DeclStmt, info *types.Info, fset *token.FileSet) []diag.Finding {
 	if ds == nil || info == nil {
 		return nil
 	}
@@ -127,7 +137,7 @@ func saf02CheckDeclStmt(ds *ast.DeclStmt, info *types.Info, fset *token.FileSet)
 		return nil
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, spec := range gd.Specs {
 		vs, ok := spec.(*ast.ValueSpec)
 		if !ok {
@@ -148,8 +158,8 @@ func saf02CheckDeclStmt(ds *ast.DeclStmt, info *types.Info, fset *token.FileSet)
 			}
 
 			pos := fset.Position(vs.Pos())
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "SAF-02",
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ruleSAF02,
 				Severity: diag.SeverityError,
 				Message:  "copy-sensitive sync/noCopy value must not be copied in variable initialization",
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -161,12 +171,12 @@ func saf02CheckDeclStmt(ds *ast.DeclStmt, info *types.Info, fset *token.FileSet)
 	return diagnostics
 }
 
-func saf02CheckReturnStmt(rs *ast.ReturnStmt, info *types.Info, fset *token.FileSet) []diag.Diagnostic {
+func saf02CheckReturnStmt(rs *ast.ReturnStmt, info *types.Info, fset *token.FileSet) []diag.Finding {
 	if rs == nil || info == nil {
 		return nil
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, result := range rs.Results {
 		rt := info.TypeOf(result)
 		if !containsCopySensitiveValue(rt, map[types.Type]bool{}) {
@@ -174,8 +184,8 @@ func saf02CheckReturnStmt(rs *ast.ReturnStmt, info *types.Info, fset *token.File
 		}
 
 		pos := fset.Position(result.Pos())
-		diagnostics = append(diagnostics, diag.Diagnostic{
-			RuleID:   "SAF-02",
+		diagnostics = append(diagnostics, diag.Finding{
+			RuleID:   ruleSAF02,
 			Severity: diag.SeverityError,
 			Message:  "copy-sensitive sync/noCopy value must not be returned by value",
 			Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

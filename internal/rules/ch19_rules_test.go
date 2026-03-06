@@ -6,16 +6,25 @@ import (
 	"testing"
 )
 
+const (
+	tstTestFilePerms = 0o644
+	tstWriteErrFmt   = "write %s: %v"
+	tstGoModFile     = "go.mod"
+	tstSampleGoFile  = "sample.go"
+	tstMinDiagCount  = 3
+)
+
 func writeTSTFile(t *testing.T, dir, name, content string) string {
 	t.Helper()
 	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatalf("write %s: %v", name, err)
+	if err := os.WriteFile(path, []byte(content), tstTestFilePerms); err != nil {
+		t.Fatalf(tstWriteErrFmt, name, err)
 	}
 	return path
 }
 
-func TestTST01_TableDrivenHeuristics(t *testing.T) {
+// TestTST01TableDrivenHeuristics documents this exported function.
+func TestTST01TableDrivenHeuristics(t *testing.T) {
 	tests := []struct {
 		name      string
 		source    string
@@ -25,6 +34,7 @@ func TestTST01_TableDrivenHeuristics(t *testing.T) {
 			name: "manually unrolled subtests fail",
 			source: `package sample
 import "testing"
+// TestParse documents this exported function.
 func TestParse(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {})
 	t.Run("valid", func(t *testing.T) {})
@@ -37,6 +47,7 @@ func TestParse(t *testing.T) {
 			name: "range loop table-driven passes",
 			source: `package sample
 import "testing"
+// TestParse documents this exported function.
 func TestParse(t *testing.T) {
 	tests := []struct{ name string }{{name: "a"}, {name: "b"}, {name: "c"}}
 	for _, tc := range tests {
@@ -50,8 +61,11 @@ func TestParse(t *testing.T) {
 			name: "three test variants sharing prefix fail",
 			source: `package sample
 import "testing"
+// TestParseEmpty documents this exported function.
 func TestParseEmpty(t *testing.T) {}
+// TestParseValid documents this exported function.
 func TestParseValid(t *testing.T) {}
+// TestParseInvalid documents this exported function.
 func TestParseInvalid(t *testing.T) {}
 `,
 			wantCount: 3,
@@ -60,7 +74,9 @@ func TestParseInvalid(t *testing.T) {}
 			name: "benchmark and example excluded",
 			source: `package sample
 import "testing"
+// BenchmarkParse documents this exported function.
 func BenchmarkParse(b *testing.B) {}
+// ExampleParse documents this exported function.
 func ExampleParse() {}
 `,
 			wantCount: 0,
@@ -69,6 +85,7 @@ func ExampleParse() {}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			dir := t.TempDir()
 			file := writeTSTFile(t, dir, "sample_test.go", tc.source)
 
@@ -83,7 +100,8 @@ func ExampleParse() {}
 	}
 }
 
-func TestTST02_HelperFirstStatement(t *testing.T) {
+// TestTST02HelperFirstStatement documents this exported function.
+func TestTST02HelperFirstStatement(t *testing.T) {
 	tests := []struct {
 		name      string
 		source    string
@@ -94,6 +112,7 @@ func TestTST02_HelperFirstStatement(t *testing.T) {
 			source: `package sample
 import "testing"
 func requireEqual(t *testing.T) { t.Fatalf("bad") }
+// TestX documents this exported function.
 func TestX(t *testing.T) { requireEqual(t) }
 `,
 			wantCount: 1,
@@ -103,6 +122,7 @@ func TestX(t *testing.T) { requireEqual(t) }
 			source: `package sample
 import "testing"
 func requireEqual(t *testing.T) { t.Helper(); t.Fatalf("bad") }
+// TestX documents this exported function.
 func TestX(t *testing.T) { requireEqual(t) }
 `,
 			wantCount: 0,
@@ -112,6 +132,7 @@ func TestX(t *testing.T) { requireEqual(t) }
 			source: `package sample
 import "testing"
 func requireEqual(t *testing.T) { x := 1; t.Helper(); _ = x; t.Fatalf("bad") }
+// TestX documents this exported function.
 func TestX(t *testing.T) { requireEqual(t) }
 `,
 			wantCount: 1,
@@ -120,6 +141,7 @@ func TestX(t *testing.T) { requireEqual(t) }
 			name: "top-level test function is excluded",
 			source: `package sample
 import "testing"
+// TestX documents this exported function.
 func TestX(t *testing.T) { t.Fatalf("bad") }
 `,
 			wantCount: 0,
@@ -128,6 +150,7 @@ func TestX(t *testing.T) { t.Fatalf("bad") }
 			name: "subtest anonymous function requires helper",
 			source: `package sample
 import "testing"
+// TestX documents this exported function.
 func TestX(t *testing.T) {
 	t.Run("case", func(t *testing.T) { t.Fatalf("bad") })
 }
@@ -139,6 +162,7 @@ func TestX(t *testing.T) {
 			source: `package sample
 import "testing"
 func requireTB(tb testing.TB) { tb.Fatalf("bad") }
+// TestX documents this exported function.
 func TestX(t *testing.T) { requireTB(t) }
 `,
 			wantCount: 1,
@@ -147,6 +171,7 @@ func TestX(t *testing.T) { requireTB(t) }
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			dir := t.TempDir()
 			file := writeTSTFile(t, dir, "sample_test.go", tc.source)
 
@@ -161,7 +186,8 @@ func TestX(t *testing.T) { requireTB(t) }
 	}
 }
 
-func TestTST03_TimeSleepInTests(t *testing.T) {
+// TestTST03TimeSleepInTests documents this exported function.
+func TestTST03TimeSleepInTests(t *testing.T) {
 	tests := []struct {
 		name         string
 		files        map[string]string
@@ -172,12 +198,13 @@ func TestTST03_TimeSleepInTests(t *testing.T) {
 		{
 			name: "direct time sleep in test errors",
 			files: map[string]string{
-				"go.mod": "module example.com/tst03\n\ngo 1.22\n",
+				tstGoModFile: "module example.com/tst03\n\ngo 1.22\n",
 				"a_test.go": `package sample
 import (
 	"testing"
 	"time"
 )
+// TestX documents this exported function.
 func TestX(t *testing.T) { time.Sleep(time.Millisecond) }
 `,
 			},
@@ -188,12 +215,13 @@ func TestX(t *testing.T) { time.Sleep(time.Millisecond) }
 		{
 			name: "aliased time import is resolved",
 			files: map[string]string{
-				"go.mod": "module example.com/tst03alias\n\ngo 1.22\n",
+				tstGoModFile: "module example.com/tst03alias\n\ngo 1.22\n",
 				"a_test.go": `package sample
 import (
 	"testing"
 	tm "time"
 )
+// TestX documents this exported function.
 func TestX(t *testing.T) { tm.Sleep(tm.Millisecond) }
 `,
 			},
@@ -204,7 +232,7 @@ func TestX(t *testing.T) { tm.Sleep(tm.Millisecond) }
 		{
 			name: "non test file is ignored",
 			files: map[string]string{
-				"sample.go": `package sample
+				tstSampleGoFile: `package sample
 import "time"
 func f() { time.Sleep(time.Second) }
 `,
@@ -217,6 +245,7 @@ func f() { time.Sleep(time.Second) }
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			dir := t.TempDir()
 			files := make([]string, 0)
 			for name, content := range tc.files {

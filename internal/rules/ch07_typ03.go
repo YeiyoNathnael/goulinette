@@ -9,25 +9,34 @@ import (
 
 type typ03Rule struct{}
 
+const (
+	typ03Chapter      = 7
+	typ03CommaOKArity = 2
+)
+
+// NewTYP03 returns the TYP03 rule implementation.
 func NewTYP03() Rule {
 	return typ03Rule{}
 }
 
+// ID returns the rule identifier.
 func (typ03Rule) ID() string {
-	return "TYP-03"
+	return ruleTYP03
 }
 
+// Chapter returns the chapter number for this rule.
 func (typ03Rule) Chapter() int {
-	return 7
+	return typ03Chapter
 }
 
-func (typ03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (typ03Rule) Run(ctx Context) ([]diag.Finding, error) {
 	pkgs, err := loadTypedPackages(ctx.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pkg := range pkgs {
 		for _, syntaxFile := range pkg.Syntax {
 			for _, idxCtx := range collectMapReadsWithoutCommaOK(syntaxFile, pkg.TypesInfo) {
@@ -36,8 +45,8 @@ func (typ03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				}
 
 				pos := pkg.Fset.Position(idxCtx.indexExpr.Lbrack)
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "TYP-03",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleTYP03,
 					Severity: diag.SeverityError,
 					Message:  "map reads should use comma-ok form when zero value can be a meaningful result",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -109,7 +118,7 @@ func isMapCommaOKRead(idx *ast.IndexExpr, ancestors []ast.Node) bool {
 			continue
 		}
 		for _, rhs := range as.Rhs {
-			if rhs == idx && len(as.Lhs) >= 2 {
+			if rhs == idx && len(as.Lhs) >= typ03CommaOKArity {
 				return true
 			}
 		}

@@ -9,19 +9,32 @@ import (
 
 type mag02Rule struct{}
 
+const (
+	mag02Chapter                = 18
+	mag02ShortStringThreshold   = 4
+	mag02TestRepeatThreshold    = 3
+	mag02NonTestRepeatThreshold = 2
+	mag02MessageRepeatedLiteral = " is repeated; extract to a named constant"
+	mag02HintRepeatedLiteral    = "for repeated identifiers/keys/tokens, define a descriptive constant"
+)
+
+// NewMAG02 returns the MAG02 rule implementation.
 func NewMAG02() Rule {
 	return mag02Rule{}
 }
 
+// ID returns the rule identifier.
 func (mag02Rule) ID() string {
-	return "MAG-02"
+	return ruleMAG02
 }
 
+// Chapter returns the chapter number for this rule.
 func (mag02Rule) Chapter() int {
-	return 18
+	return mag02Chapter
 }
 
-func (mag02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (mag02Rule) Run(ctx Context) ([]diag.Finding, error) {
 	units, err := collectMagAstUnits(ctx)
 	if err != nil {
 		return nil, err
@@ -47,7 +60,7 @@ func (mag02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 			if isInConstDecl(stack) {
 				return
 			}
-			if shortStringLiteral(lit, 4) {
+			if shortStringLiteral(lit, mag02ShortStringThreshold) {
 				return
 			}
 
@@ -60,10 +73,10 @@ func (mag02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 		})
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for literal, occs := range occByValue {
-		nonTestCount := 0
-		testCount := 0
+		var nonTestCount int
+		var testCount int
 		for _, occ := range occs {
 			if occ.isTest {
 				testCount++
@@ -74,21 +87,21 @@ func (mag02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 
 		for _, occ := range occs {
 			if occ.isTest {
-				if testCount < 3 {
+				if testCount < mag02TestRepeatThreshold {
 					continue
 				}
 			} else {
-				if nonTestCount < 2 {
+				if nonTestCount < mag02NonTestRepeatThreshold {
 					continue
 				}
 			}
 
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "MAG-02",
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ruleMAG02,
 				Severity: diag.SeverityError,
-				Message:  "string literal " + literal + " is repeated; extract to a named constant",
+				Message:  "string literal " + literal + mag02MessageRepeatedLiteral,
 				Pos:      diag.Position{File: occ.pos.Filename, Line: occ.pos.Line, Col: occ.pos.Column},
-				Hint:     "for repeated identifiers/keys/tokens, define a descriptive constant",
+				Hint:     mag02HintRepeatedLiteral,
 			})
 		}
 	}

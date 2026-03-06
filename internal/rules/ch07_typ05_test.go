@@ -6,6 +6,12 @@ import (
 	"testing"
 )
 
+const (
+	typTestFileName = "x.go"
+	typParseErrFmt  = "parse failed: %v"
+)
+
+// TestCollectSingleValueAssertions documents this exported function.
 func TestCollectSingleValueAssertions(t *testing.T) {
 	src := `package p
 func f(x any) {
@@ -16,9 +22,9 @@ func f(x any) {
 }`
 
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "x.go", src, parser.ParseComments)
+	file, err := parser.ParseFile(fset, typTestFileName, src, parser.ParseComments)
 	if err != nil {
-		t.Fatalf("parse failed: %v", err)
+		t.Fatalf(typParseErrFmt, err)
 	}
 
 	items := collectSingleValueAssertions(file)
@@ -27,6 +33,7 @@ func f(x any) {
 	}
 }
 
+// TestTypeSwitchCaseExemption documents this exported function.
 func TestTypeSwitchCaseExemption(t *testing.T) {
 	src := `package p
 func f(x any) {
@@ -37,9 +44,9 @@ func f(x any) {
 }`
 
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "x.go", src, parser.ParseComments)
+	file, err := parser.ParseFile(fset, typTestFileName, src, parser.ParseComments)
 	if err != nil {
-		t.Fatalf("parse failed: %v", err)
+		t.Fatalf(typParseErrFmt, err)
 	}
 
 	items := collectSingleValueAssertions(file)

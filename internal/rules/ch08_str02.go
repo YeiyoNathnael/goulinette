@@ -9,25 +9,31 @@ import (
 
 type str02Rule struct{}
 
+const str02Chapter = 8
+
+// NewSTR02 returns the STR02 rule implementation.
 func NewSTR02() Rule {
 	return str02Rule{}
 }
 
+// ID returns the rule identifier.
 func (str02Rule) ID() string {
-	return "STR-02"
+	return ruleSTR02
 }
 
+// Chapter returns the chapter number for this rule.
 func (str02Rule) Chapter() int {
-	return 8
+	return str02Chapter
 }
 
-func (str02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (str02Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		for _, decl := range pf.File.Decls {
 			fn, ok := decl.(*ast.FuncDecl)
@@ -44,8 +50,8 @@ func (str02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 			}
 
 			pos := pf.FSet.Position(recv.Names[0].Pos())
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "STR-02",
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ruleSTR02,
 				Severity: diag.SeverityError,
 				Message:  "receiver names this and self are forbidden",
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

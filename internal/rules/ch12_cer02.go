@@ -5,32 +5,40 @@ import (
 	"go/token"
 	"go/types"
 
-	"github.com/YeiyoNathnael/goulinette/internal/diag"
-
 	"golang.org/x/tools/go/packages"
+
+	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 type cer02Rule struct{}
 
+const (
+	cer02Chapter = 12
+)
+
+// NewCER02 returns the CER02 rule implementation.
 func NewCER02() Rule {
 	return cer02Rule{}
 }
 
+// ID returns the rule identifier.
 func (cer02Rule) ID() string {
-	return "CER-02"
+	return ruleCER02
 }
 
+// Chapter returns the chapter number for this rule.
 func (cer02Rule) Chapter() int {
-	return 12
+	return cer02Chapter
 }
 
-func (cer02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (cer02Rule) Run(ctx Context) ([]diag.Finding, error) {
 	pkgs, err := loadTypedPackages(ctx.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pkg := range pkgs {
 		concreteErrorTypes := collectPackageConcreteErrorTypes(pkg)
 		if len(concreteErrorTypes) == 0 {
@@ -60,8 +68,8 @@ func (cer02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 						}
 
 						pos := pkg.Fset.Position(name.Pos())
-						diagnostics = append(diagnostics, diag.Diagnostic{
-							RuleID:   "CER-02",
+						diagnostics = append(diagnostics, diag.Finding{
+							RuleID:   ruleCER02,
 							Severity: diag.SeverityError,
 							Message:  "custom error variables must be declared as error interface, not concrete error types",
 							Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

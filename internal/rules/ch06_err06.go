@@ -4,25 +4,31 @@ import "github.com/YeiyoNathnael/goulinette/internal/diag"
 
 type err06Rule struct{}
 
+const err06Chapter = 6
+
+// NewERR06 returns the ERR06 rule implementation.
 func NewERR06() Rule {
 	return err06Rule{}
 }
 
+// ID returns the rule identifier.
 func (err06Rule) ID() string {
-	return "ERR-06"
+	return ruleERR06
 }
 
+// Chapter returns the chapter number for this rule.
 func (err06Rule) Chapter() int {
-	return 6
+	return err06Chapter
 }
 
-func (err06Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (err06Rule) Run(ctx Context) ([]diag.Finding, error) {
 	pkgs, err := loadTypedPackages(ctx.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pkg := range pkgs {
 		for _, syntaxFile := range pkg.Syntax {
 			for _, panicCall := range collectCalls(syntaxFile, "panic") {
@@ -31,8 +37,8 @@ func (err06Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				}
 
 				pos := pkg.Fset.Position(panicCall.call.Lparen)
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "ERR-06",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleERR06,
 					Severity: diag.SeverityError,
 					Message:  "panic should not be used for operational errors; return error instead",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

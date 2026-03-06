@@ -6,7 +6,8 @@ import (
 	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
-func TestParseOutputDiagnostics_WithPosition(t *testing.T) {
+// TestParseOutputDiagnosticsWithPosition documents this exported function.
+func TestParseOutputDiagnosticsWithPosition(t *testing.T) {
 	input := "a/b/c.go:12:8: something bad"
 	ds := ParseOutputDiagnostics(input, "FMT-02", "go vet", diag.SeverityError)
 	if len(ds) != 1 {
@@ -17,7 +18,8 @@ func TestParseOutputDiagnostics_WithPosition(t *testing.T) {
 	}
 }
 
-func TestParseOutputDiagnostics_WithoutPosition(t *testing.T) {
+// TestParseOutputDiagnosticsWithoutPosition documents this exported function.
+func TestParseOutputDiagnosticsWithoutPosition(t *testing.T) {
 	input := "plain message"
 	ds := ParseOutputDiagnostics(input, "FMT-03", "staticcheck", diag.SeverityWarning)
 	if len(ds) != 1 {

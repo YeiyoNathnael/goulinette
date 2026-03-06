@@ -13,9 +13,14 @@ type callContext struct {
 	ancestors []ast.Node
 }
 
+const (
+	ancestorStackCap = 32
+	errorKeyword     = "error"
+)
+
 func collectCalls(file ast.Node, name string) []callContext {
 	out := make([]callContext, 0)
-	stack := make([]ast.Node, 0, 32)
+	stack := make([]ast.Node, 0, ancestorStackCap)
 
 	ast.Inspect(file, func(n ast.Node) bool {
 		if n == nil {
@@ -102,7 +107,7 @@ func isOperationalPanicArg(expr ast.Expr, info *types.Info) bool {
 			return false
 		}
 		lower := strings.ToLower(v)
-		for _, kw := range []string{"failed", "error", "timeout", "not found", "invalid", "unable", "cannot"} {
+		for _, kw := range []string{"failed", errorKeyword, "timeout", "not found", "invalid", "unable", "cannot"} {
 			if strings.Contains(lower, kw) {
 				return true
 			}

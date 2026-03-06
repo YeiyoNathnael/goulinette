@@ -6,16 +6,24 @@ import (
 	"testing"
 )
 
+const (
+	resTestFilePerms = 0o644
+	resWriteErrFmt   = "write %s: %v"
+	resGoModFile     = "go.mod"
+	resSampleGoFile  = "sample.go"
+)
+
 func writeRESFile(t *testing.T, dir, name, content string) string {
 	t.Helper()
 	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatalf("write %s: %v", name, err)
+	if err := os.WriteFile(path, []byte(content), resTestFilePerms); err != nil {
+		t.Fatalf(resWriteErrFmt, name, err)
 	}
 	return path
 }
 
-func TestRES01_DeferClosePatterns(t *testing.T) {
+// TestRES01DeferClosePatterns documents this exported function.
+func TestRES01DeferClosePatterns(t *testing.T) {
 	tests := []struct {
 		name      string
 		source    string
@@ -92,9 +100,10 @@ func f(path string) error {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			dir := t.TempDir()
-			writeRESFile(t, dir, "go.mod", "module example.com/res01\n\ngo 1.22\n")
-			writeRESFile(t, dir, "sample.go", tc.source)
+			_ = writeRESFile(t, dir, resGoModFile, "module example.com/res01\n\ngo 1.22\n")
+			_ = writeRESFile(t, dir, resSampleGoFile, tc.source)
 
 			diags, err := NewRES01().Run(Context{Root: dir})
 			if err != nil {
@@ -107,7 +116,8 @@ func f(path string) error {
 	}
 }
 
-func TestRES02_DeferInLoop(t *testing.T) {
+// TestRES02DeferInLoop documents this exported function.
+func TestRES02DeferInLoop(t *testing.T) {
 	tests := []struct {
 		name      string
 		source    string
@@ -141,8 +151,9 @@ func f(items []int) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			dir := t.TempDir()
-			file := writeRESFile(t, dir, "sample.go", tc.source)
+			file := writeRESFile(t, dir, resSampleGoFile, tc.source)
 
 			diags, err := NewRES02().Run(Context{Files: []string{file}})
 			if err != nil {

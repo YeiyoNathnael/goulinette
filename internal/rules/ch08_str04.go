@@ -11,25 +11,31 @@ import (
 
 type str04Rule struct{}
 
+const str04Chapter = 8
+
+// NewSTR04 returns the STR04 rule implementation.
 func NewSTR04() Rule {
 	return str04Rule{}
 }
 
+// ID returns the rule identifier.
 func (str04Rule) ID() string {
-	return "STR-04"
+	return ruleSTR04
 }
 
+// Chapter returns the chapter number for this rule.
 func (str04Rule) Chapter() int {
-	return 8
+	return str04Chapter
 }
 
-func (str04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (str04Rule) Run(ctx Context) ([]diag.Finding, error) {
 	pkgs, err := loadTypedPackages(ctx.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pkg := range pkgs {
 		for _, syntaxFile := range pkg.Syntax {
 			filename := pkg.Fset.Position(syntaxFile.Pos()).Filename
@@ -53,8 +59,8 @@ func (str04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				}
 
 				pos := pkg.Fset.Position(cl.Lbrace)
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "STR-04",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleSTR04,
 					Severity: diag.SeverityError,
 					Message:  "struct literals must use named fields",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

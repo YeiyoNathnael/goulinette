@@ -7,27 +7,80 @@ import (
 	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
+const (
+	builtinTypeBool       = "bool"
+	builtinTypeString     = "string"
+	builtinTypeByte       = "byte"
+	builtinTypeRune       = "rune"
+	builtinTypeInt        = "int"
+	builtinTypeInt8       = "int8"
+	builtinTypeInt16      = "int16"
+	builtinTypeInt32      = "int32"
+	builtinTypeInt64      = "int64"
+	builtinTypeUint       = "uint"
+	builtinTypeUint8      = "uint8"
+	builtinTypeUint16     = "uint16"
+	builtinTypeUint32     = "uint32"
+	builtinTypeUint64     = "uint64"
+	builtinTypeUintptr    = "uintptr"
+	builtinTypeFloat32    = "float32"
+	builtinTypeFloat64    = "float64"
+	builtinTypeComplex64  = "complex64"
+	builtinTypeComplex128 = "complex128"
+
+	boolLiteralTrue  = "true"
+	boolLiteralFalse = "false"
+)
+
+var builtinTypeNames = map[string]struct{}{
+	builtinTypeBool:       {},
+	builtinTypeString:     {},
+	builtinTypeByte:       {},
+	builtinTypeRune:       {},
+	builtinTypeInt:        {},
+	builtinTypeInt8:       {},
+	builtinTypeInt16:      {},
+	builtinTypeInt32:      {},
+	builtinTypeInt64:      {},
+	builtinTypeUint:       {},
+	builtinTypeUint8:      {},
+	builtinTypeUint16:     {},
+	builtinTypeUint32:     {},
+	builtinTypeUint64:     {},
+	builtinTypeUintptr:    {},
+	builtinTypeFloat32:    {},
+	builtinTypeFloat64:    {},
+	builtinTypeComplex64:  {},
+	builtinTypeComplex128: {},
+}
+
 type var02Rule struct{}
 
+const var02Chapter = 3
+
+// NewVAR02 returns the VAR02 rule implementation.
 func NewVAR02() Rule {
 	return var02Rule{}
 }
 
+// ID returns the rule identifier.
 func (var02Rule) ID() string {
-	return "VAR-02"
+	return ruleVAR02
 }
 
+// Chapter returns the chapter number for this rule.
 func (var02Rule) Chapter() int {
-	return 3
+	return var02Chapter
 }
 
-func (var02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (var02Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		ast.Inspect(pf.File, func(n ast.Node) bool {
 			body, ok := n.(*ast.BlockStmt)
@@ -50,15 +103,15 @@ func (var02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 						continue
 					}
 
-					defaultType, isUntypedLiteral := defaultLiteralType(rhs)
-					if !isUntypedLiteral {
+					defaultType, isLiteral := defaultLiteralType(rhs)
+					if !isLiteral {
 						continue
 					}
 
 					if conversionType, found := findPostDeclConversionNeed(body, assign.End(), lhs, defaultType); found {
 						pos := pf.FSet.Position(lhs.Pos())
-						diagnostics = append(diagnostics, diag.Diagnostic{
-							RuleID:   "VAR-02",
+						diagnostics = append(diagnostics, diag.Finding{
+							RuleID:   ruleVAR02,
 							Severity: diag.SeverityError,
 							Message:  "literal short declaration infers default type but later usage expects a different target type",
 							Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -80,20 +133,22 @@ func defaultLiteralType(expr ast.Expr) (string, bool) {
 	case *ast.BasicLit:
 		switch e.Kind {
 		case token.INT:
-			return "int", true
+			return builtinTypeInt, true
 		case token.FLOAT:
-			return "float64", true
+			return builtinTypeFloat64, true
 		case token.IMAG:
-			return "complex128", true
+			return builtinTypeComplex128, true
 		case token.CHAR:
-			return "rune", true
+			return builtinTypeRune, true
 		case token.STRING:
-			return "string", true
+			return builtinTypeString, true
 		}
 	case *ast.Ident:
-		if e.Name == "true" || e.Name == "false" {
-			return "bool", true
+		if e.Name == boolLiteralTrue || e.Name == boolLiteralFalse {
+			return builtinTypeBool, true
 		}
+	default:
+		return "", false
 	}
 
 	return "", false
@@ -101,7 +156,7 @@ func defaultLiteralType(expr ast.Expr) (string, bool) {
 
 func findPostDeclConversionNeed(body *ast.BlockStmt, after token.Pos, ident *ast.Ident, defaultType string) (string, bool) {
 	var conversionType string
-	found := false
+	var found bool
 	ast.Inspect(body, func(n ast.Node) bool {
 		if found || n == nil {
 			return !found
@@ -142,10 +197,6 @@ func findPostDeclConversionNeed(body *ast.BlockStmt, after token.Pos, ident *ast
 }
 
 func isBuiltinTypeName(name string) bool {
-	switch name {
-	case "bool", "string", "byte", "rune", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "uintptr", "float32", "float64", "complex64", "complex128":
-		return true
-	default:
-		return false
-	}
+	_, ok := builtinTypeNames[name]
+	return ok
 }

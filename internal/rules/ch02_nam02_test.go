@@ -2,6 +2,7 @@ package rules
 
 import "testing"
 
+// TestIsAllCapsStyle documents this exported function.
 func TestIsAllCapsStyle(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -16,6 +17,7 @@ func TestIsAllCapsStyle(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			got := isAllCapsStyle(tc.value)
 			if got != tc.want {
 				t.Fatalf("isAllCapsStyle(%q) = %v, want %v", tc.value, got, tc.want)

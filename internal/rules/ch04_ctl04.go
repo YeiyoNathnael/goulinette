@@ -8,25 +8,31 @@ import (
 
 type ctl04Rule struct{}
 
+const ctl04Chapter = 4
+
+// NewCTL04 returns the CTL04 rule implementation.
 func NewCTL04() Rule {
 	return ctl04Rule{}
 }
 
+// ID returns the rule identifier.
 func (ctl04Rule) ID() string {
-	return "CTL-04"
+	return ruleCTL04
 }
 
+// Chapter returns the chapter number for this rule.
 func (ctl04Rule) Chapter() int {
-	return 4
+	return ctl04Chapter
 }
 
-func (ctl04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (ctl04Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		ast.Inspect(pf.File, func(n ast.Node) bool {
 			ts, ok := n.(*ast.TypeSwitchStmt)
@@ -39,8 +45,8 @@ func (ctl04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 			}
 
 			pos := pf.FSet.Position(ts.Switch)
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "CTL-04",
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ruleCTL04,
 				Severity: diag.SeverityError,
 				Message:  "type switch must include a default case",
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

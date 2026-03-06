@@ -5,8 +5,10 @@ import (
 	"go/types"
 )
 
+const resourceErrorTypeName = "error"
+
 func closerInterfaceType() *types.Interface {
-	errObj := types.Universe.Lookup("error")
+	errObj := types.Universe.Lookup(resourceErrorTypeName)
 	if errObj == nil {
 		return nil
 	}

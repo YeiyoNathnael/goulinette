@@ -8,9 +8,10 @@ import (
 	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
+// TestPrintTextSeverityColors documents this exported function.
 func TestPrintTextSeverityColors(t *testing.T) {
 	result := diag.Result{
-		Diagnostics: []diag.Diagnostic{
+		Diagnostics: []diag.Finding{
 			{RuleID: "TYP-03", Severity: diag.SeverityError, Message: "err", Pos: diag.Position{File: "a.go", Line: 1, Col: 1}},
 			{RuleID: "CTX-03", Severity: diag.SeverityWarning, Message: "warn", Pos: diag.Position{File: "a.go", Line: 2, Col: 1}},
 		},

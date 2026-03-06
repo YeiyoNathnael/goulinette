@@ -71,6 +71,9 @@ func Registry() []Rule {
 		NewSAF02(),
 		NewMAG01(),
 		NewMAG02(),
+		NewTST01(),
+		NewTST02(),
+		NewTST03(),
 	}
 }
 

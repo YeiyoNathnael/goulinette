@@ -22,6 +22,7 @@ func Registry() []Rule {
 		NewFUN01(),
 		NewFUN02(),
 		NewFUN03(),
+		NewFUN04(),
 	}
 }
 

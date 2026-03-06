@@ -67,6 +67,8 @@ func Registry() []Rule {
 		NewIMP03(),
 		NewRES01(),
 		NewRES02(),
+		NewSAF01(),
+		NewSAF02(),
 	}
 }
 

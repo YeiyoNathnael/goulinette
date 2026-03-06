@@ -11,6 +11,7 @@ func Registry() []Rule {
 		NewNAM02(),
 		NewNAM06(),
 		NewNAM07(),
+		NewVAR01(),
 	}
 }
 

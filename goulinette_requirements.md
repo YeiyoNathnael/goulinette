@@ -446,6 +446,12 @@ Passing `nil` as a `context.Context` is explicitly forbidden by the Go standard 
 
 ---
 
+#### CTX-04 — Cancel functions from derived contexts must always be deferred or called on all exit paths · **Error**
+
+Any context created via `context.WithCancel`, `context.WithTimeout`, or `context.WithDeadline` returns a cancellation function that must be invoked to release resources. Failing to call this function leaks timers, references, and cancellation propagation resources. The required pattern is to place `defer cancel()` immediately after successful context creation, before any possible early return. The moulinette must flag any derived-context cancel function that is never handled, handled only conditionally, or handled too late to cover all returns.
+
+---
+
 ## 15. Import Organization
 
 ---

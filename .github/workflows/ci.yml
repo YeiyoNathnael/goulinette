@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "fix/**", "feat/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test (with race detector)
+        run: go test -race -count=1 ./...
+
+      - name: Self-lint
+        run: |
+          go build -o goulinette ./cmd/goulinette
+          ./goulinette --level=3 --format json | tee findings.json
+          count=$(jq '.diagnostics | length' findings.json)
+          echo "goulinette found $count diagnostics"
+          test "$count" -eq 0

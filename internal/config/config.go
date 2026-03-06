@@ -13,6 +13,7 @@ const (
 	flagTimeout    = "timeout"
 	defaultWorkers = 4
 	maxStrictLevel = 3
+	appName        = "goulinette"
 )
 
 // Settings holds the fully parsed configuration for a single analysis run.
@@ -30,6 +31,12 @@ type Settings struct {
 	StrictTools      bool
 	MaxWorkers       int
 	Timeout          time.Duration
+	// ExplainRule, when non-empty, names a rule whose rationale should be
+	// printed and the process should exit without running analysis.
+	ExplainRule string
+	// PrintVersion, when true, causes the binary to print its version string
+	// and exit without running analysis.
+	PrintVersion bool
 }
 
 // ParseFlags parses the provided CLI argument slice and returns a validated
@@ -39,7 +46,7 @@ type Settings struct {
 // and that --level is in the range [0, 3]. An error is returned for any
 // unrecognised flag or invalid value.
 func ParseFlags(args []string) (Settings, error) {
-	fs := flag.NewFlagSet("goulinette", flag.ContinueOnError)
+	fs := flag.NewFlagSet(appName, flag.ContinueOnError)
 
 	var chapterCSV string
 	var ruleCSV string
@@ -56,6 +63,8 @@ func ParseFlags(args []string) (Settings, error) {
 	fs.BoolVar(&cfg.StrictTools, "strict-tools", false, "fail when required external tools are missing")
 	fs.IntVar(&cfg.MaxWorkers, "max-workers", defaultWorkers, "number of rules to run in parallel (default 4)")
 	fs.DurationVar(&cfg.Timeout, flagTimeout, 2*time.Minute, "command timeout")
+	fs.StringVar(&cfg.ExplainRule, "explain", "", "print rationale for a rule ID and exit (e.g. --explain CTX-01)")
+	fs.BoolVar(&cfg.PrintVersion, "version", false, "print version and exit")
 
 	if err := fs.Parse(args); err != nil {
 		return Settings{}, err

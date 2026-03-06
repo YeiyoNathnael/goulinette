@@ -11,6 +11,7 @@ import (
 	"github.com/YeiyoNathnael/goulinette/internal/discovery"
 	"github.com/YeiyoNathnael/goulinette/internal/report"
 	"github.com/YeiyoNathnael/goulinette/internal/rules"
+	"github.com/YeiyoNathnael/goulinette/internal/suppress"
 )
 
 // Runner orchestrates a full analysis run: it discovers Go source files,
@@ -113,6 +114,7 @@ func (r Runner) Run(ctx context.Context) int {
 	}
 
 	diag.Sort(result.Diagnostics)
+	result.Diagnostics = suppress.Filter(result.Diagnostics)
 	report.Print(os.Stdout, r.cfg.Format, result)
 	return result.ExitCode(r.cfg.WarningsAsErrors)
 }

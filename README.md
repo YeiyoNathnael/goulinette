@@ -60,6 +60,49 @@ go build -o goulinette ./cmd/goulinette
 ./goulinette --root . --disable TST-03
 ```
 
+## 8) Print the version
+
+```bash
+./goulinette --version
+# goulinette dev
+```
+
+## 9) Explain a rule
+
+```bash
+./goulinette --explain CTX-01
+# CTX-01
+#
+# context.Context must be the first parameter of any function that accepts
+# one. This is a hard Go convention. Fix: move ctx to position 0.
+```
+
+Print rationale for every rule at once:
+
+```bash
+./goulinette --explain all
+```
+
+## 10) Suppress a specific finding inline
+
+Add a `//goulinette:ignore` directive on the same line as, or on the
+line immediately preceding, the offending code:
+
+```go
+// Suppress one rule for this line
+x := doThing() //goulinette:ignore ERR-01
+
+// Suppress multiple rules
+//goulinette:ignore MAG-02 NAM-07
+const appName = "myapp"
+
+// Suppress all rules for the next line
+//goulinette:ignore
+blockingLegacyCall()
+```
+
+Rule IDs in the directive are case-insensitive.
+
 ---
 
 ## How invocation works (clear behavior)
@@ -120,8 +163,17 @@ Example:
 - `--strict-tools`
   - Fails hard when required external tools are missing instead of soft-degrading.
 
+- `--version`
+  - Prints the goulinette version string and exits.
+  - The default value is `dev`; release builds set this via `-ldflags`.
+
+- `--explain RULE-ID|all`
+  - Prints the rationale for a single rule (e.g. `--explain CTX-01`) and exits.
+  - Use `--explain all` to print rationale for every rule in order.
+
 - `--max-workers N`
-  - Configures worker limit (currently reserved/plumbed for scheduling control).
+  - Number of goroutines used to execute rules concurrently (default 4).
+  - Rules are dispatched over a buffered work channel; the pool is bounded by `N`.
 
 - `--timeout 2m`
   - Timeout budget for external tool invocations.
@@ -147,16 +199,19 @@ Selection is applied in this order:
 --disable string           comma-separated rule IDs to disable
 --warnings-as-errors       treat warnings as errors
 --strict-tools             fail when required external tools are missing
---max-workers int          max analysis workers (default 4)
+--max-workers int          max concurrent rule workers (default 4)
 --timeout duration         command timeout (default 2m)
+--version                  print version and exit
+--explain string           print rule rationale and exit (rule ID or "all")
 ```
 
 Notes:
 - `--level` defines the default enabled rule set (cumulative from level 0 to chosen level).
 - `--rule` overrides level-based selection (explicit include list).
 - `--chapter` and `--disable` are applied on top of the active include set.
-- `--max-workers` is parsed and carried in config for future/extended scheduling controls.
+- `--max-workers` controls the size of the concurrent worker pool used during rule execution.
 - `--timeout` applies to tool invocations run through the internal tools wrapper.
+- `--version` and `--explain` are query flags; they print and exit before any analysis runs.
 
 ### Strictness levels
 
@@ -233,6 +288,52 @@ Chapter palette (ANSI 256 colors):
 
 ---
 
+## Inline suppression
+
+Any diagnostic can be silenced without changing the analysis by placing a
+`//goulinette:ignore` comment directive in the source file.
+
+### Directive syntax
+
+```
+//goulinette:ignore [RULE-ID ...]
+```
+
+- **No rule IDs** — suppresses all findings on the associated line.
+- **One or more rule IDs** (space-separated) — suppresses only those rules.
+- Rule IDs are matched case-insensitively.
+
+### Placement rules
+
+The directive may appear either:
+- **On the same line** as the flagged code (trailing comment), or
+- **On the immediately preceding line** (standalone comment).
+
+```go
+// Same-line suppression
+result := riskyOp() //goulinette:ignore ERR-01
+
+// Preceding-line suppression
+//goulinette:ignore MAG-02
+const retries = 3
+
+// Suppress multiple rules at once
+//goulinette:ignore CON-02 CON-03
+go func() { /* ... */ }()
+
+// Suppress everything on the next line
+//goulinette:ignore
+legacyHack()
+```
+
+### When to use it
+
+Use inline suppression sparingly for narrow cases where the rule does not apply in context
+(e.g. a deliberate constant that is intentionally not named, a generated file pattern,
+or a vendored snippet). Prefer fixing the root cause where possible.
+
+---
+
 ## Rule catalog (implemented)
 
 All requirement rules in `goulinette_requirements.md` are implemented and registered.
@@ -301,21 +402,25 @@ All requirement rules in `goulinette_requirements.md` are implemented and regist
 ## Execution pipeline
 
 1. Parse CLI flags into `internal/config.Config`
-2. Discover Go files under `--root` (excluding `.git`, `vendor`, `node_modules`)
-3. Build rule context (`root`, files, tool strictness)
-4. Select rules via chapter/include/disable filters
-5. Execute selected rules sequentially
-6. Aggregate diagnostics + runtime errors
-7. Sort diagnostics deterministically
-8. Print report (`text` or `json`) and return exit code
+2. Handle query flags: `--version` prints and exits; `--explain` prints rule rationale and exits
+3. Discover Go files under `--root` (excluding `.git`, `vendor`, `node_modules`)
+4. Build rule context (`root`, files, tool strictness)
+5. Select rules via chapter/include/disable filters
+6. Dispatch selected rules to a bounded `--max-workers` goroutine pool via a buffered work channel
+7. Aggregate diagnostics + runtime errors from the results channel
+8. Apply inline suppression: remove any finding covered by a `//goulinette:ignore` directive
+9. Sort diagnostics deterministically (file → line → column → rule ID)
+10. Print report (`text` or `json`) and return exit code
 
 ## Key packages
 
-- `cmd/goulinette`: CLI entry point
-- `internal/app`: orchestration and run loop
-- `internal/config`: flag parsing
+- `cmd/goulinette`: CLI entry point; handles `--version` / `--explain` before delegating to `app.Runner`
+- `internal/app`: orchestration and run loop; owns the worker-pool dispatch and suppress-filter step
+- `internal/config`: flag parsing; defines `Settings` (includes `ExplainRule`, `PrintVersion`, `MaxWorkers`)
 - `internal/discovery`: repository file discovery
-- `internal/rules`: rule implementations, helpers, registry
+- `internal/rules`: rule implementations, helpers, registry, and `explain.go` (rationale map for all 62 rules)
+- `internal/suppress`: `Filter()` — removes diagnostics covered by `//goulinette:ignore` directives
+- `internal/version`: build-time version string (`Current`); injectable via `-ldflags` at release time
 - `internal/tools`: external command execution + diagnostics parsing
 - `internal/diag`: shared diagnostic/result model
 - `internal/report`: text/json rendering
@@ -324,13 +429,31 @@ All requirement rules in `goulinette_requirements.md` are implemented and regist
 
 ## Performance model
 
-Goulinette currently runs rules sequentially, but avoids repeated expensive setup work via helper-level caches:
+Goulinette runs rules concurrently through a bounded worker pool and avoids repeated expensive work via per-run caches:
 
+- **Worker pool**: `--max-workers` goroutines (default 4) pull from a buffered work channel; results are collected over a pre-sized results channel. The pool respects `context.Context` cancellation.
 - **AST cache**: repeated `parseFiles(...)` calls over the same file set reuse parsed structures.
 - **Typed package cache**: repeated `loadTypedPackages(...)` calls per root reuse type-loaded package graphs.
 - **Per-run reset**: caches are reset at app run start, preventing stale data across independent runs.
 
-This preserves simple rule files while significantly reducing duplicate parse/type-load overhead.
+This means parse/type-load work is shared across all concurrent rules, while `--max-workers` lets you trade off CPU saturation against wall-clock time.
+
+### Cache benchmarks
+
+Benchmarks for both cache paths live in `internal/rules/cache_bench_test.go`:
+
+```bash
+go test ./internal/rules -bench BenchmarkParseFiles -benchmem
+go test ./internal/rules -bench BenchmarkCacheKey -benchmem
+```
+
+Typical results on a modern laptop:
+
+| Benchmark | ns/op |
+|---|---|
+| `BenchmarkParseFilesCacheMiss` | ~420 000 |
+| `BenchmarkParseFilesCacheHit` | ~5 000 |
+| `BenchmarkCacheKeyGeneration` | < 1 000 |
 
 ---
 
@@ -355,10 +478,23 @@ Common tools involved:
 go test ./...
 ```
 
+## Run tests with race detector
+
+```bash
+go test -race -count=1 ./...
+```
+
 ## Run one package
 
 ```bash
 go test ./internal/rules
+```
+
+## Run cache benchmarks
+
+```bash
+go test ./internal/rules -bench BenchmarkParseFiles -benchmem
+go test ./internal/rules -bench BenchmarkCacheKey -benchmem
 ```
 
 ## Build binary
@@ -367,14 +503,44 @@ go test ./internal/rules
 go build -o goulinette ./cmd/goulinette
 ```
 
+## Build a versioned release binary
+
+```bash
+go build -ldflags "-X github.com/YeiyoNathnael/goulinette/internal/version.Current=1.2.3" \
+  -o goulinette ./cmd/goulinette
+./goulinette --version
+# goulinette 1.2.3
+```
+
+## Self-lint gate (must pass before every commit)
+
+```bash
+./goulinette --level=3 --format json | python3 -c \
+  "import sys,json; d=json.load(sys.stdin); assert len(d['diagnostics'])==0, d['diagnostics']"
+```
+
+## CI
+
+GitHub Actions runs on every push to `main` / `fix/**` / `feat/**` and on all pull requests:
+
+| Job | Command |
+|---|---|
+| Build | `go build ./...` |
+| Vet | `go vet ./...` |
+| Test (race) | `go test -race -count=1 ./...` |
+| Self-lint | build binary → `./goulinette --level=3 --format json` → assert 0 findings |
+
+See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for the full workflow definition.
+
 ## Typical feature branch flow
 
 ```bash
 git checkout -b feat/my-change
 # edit
-# test
+go test -race ./...
+./goulinette --level=3 --format json   # must report 0 findings
 git add .
-git commit -m "my change"
+git commit -m "feat: my change"
 git push -u origin feat/my-change
 ```
 

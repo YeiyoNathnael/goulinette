@@ -6,6 +6,7 @@ func Registry() []Rule {
 	return []Rule{
 		NewFMT01(),
 		NewFMT02(),
+		NewFMT03(),
 	}
 }
 

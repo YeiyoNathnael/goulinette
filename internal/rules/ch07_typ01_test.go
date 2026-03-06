@@ -6,7 +6,9 @@ import (
 	"testing"
 )
 
-// TestIsLocalStructPointerType documents this exported function.
+// TestIsLocalStructPointerType verifies that isLocalStructPointerType
+// identifies *T expressions where T is a struct type defined in the same
+// package, and rejects pointers to builtins, interfaces, or external types.
 func TestIsLocalStructPointerType(t *testing.T) {
 	localPkg := types.NewPackage("example.com/app", "app")
 	foreignPkg := types.NewPackage("example.com/other", "other")

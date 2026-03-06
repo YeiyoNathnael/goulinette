@@ -10,12 +10,20 @@ import (
 	"time"
 )
 
-// Run documents this exported function.
+// Run executes the named external tool with the given arguments in the
+// process working directory. It is a convenience wrapper around RunInDir
+// with an empty dir.
 func Run(ctx context.Context, timeout time.Duration, name string, args ...string) (string, error) {
 	return RunInDir(ctx, timeout, "", name, args...)
 }
 
-// RunInDir documents this exported function.
+// RunInDir executes the named external tool with the given arguments, running
+// from dir (or the process working directory when dir is empty). It enforces
+// a deadline via timeout, verifies the tool is present in PATH before
+// launching, and merges stdout and stderr into a single trimmed string on
+// success. On failure it returns an empty string and a descriptive error that
+// distinguishes between a missing tool, a deadline exceeded, and a non-zero
+// exit status.
 func RunInDir(ctx context.Context, timeout time.Duration, dir string, name string, args ...string) (string, error) {
 	if _, err := exec.LookPath(name); err != nil {
 		return "", fmt.Errorf("tool %q not found in PATH", name)

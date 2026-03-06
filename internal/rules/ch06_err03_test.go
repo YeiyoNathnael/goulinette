@@ -7,7 +7,9 @@ import (
 	"testing"
 )
 
-// TestIsNilableType documents this exported function.
+// TestIsNilableType verifies that isNilableType correctly classifies pointer,
+// interface, map, slice, channel, and func types as nilable and structs,
+// ints, strings, and bools as non-nilable.
 func TestIsNilableType(t *testing.T) {
 	tests := []struct {
 		name string
@@ -31,7 +33,9 @@ func TestIsNilableType(t *testing.T) {
 	}
 }
 
-// TestClassifyReturnedErrorExpr documents this exported function.
+// TestClassifyReturnedErrorExpr verifies the ERR-03 classifier that
+// determines whether return expressions on an error path carry their
+// zero values as required by the rule.
 func TestClassifyReturnedErrorExpr(t *testing.T) {
 	info := &types.Info{}
 

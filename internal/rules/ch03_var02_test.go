@@ -13,7 +13,8 @@ const (
 	var02BoolType      = "bool"
 )
 
-// TestDefaultLiteralType documents this exported function.
+// TestDefaultLiteralType verifies that defaultLiteralType maps untyped
+// literal expressions to their default Go types (int, string, bool, etc.).
 func TestDefaultLiteralType(t *testing.T) {
 	tests := []struct {
 		name string
@@ -38,7 +39,9 @@ func TestDefaultLiteralType(t *testing.T) {
 	}
 }
 
-// TestFindPostDeclConversionNeed documents this exported function.
+// TestFindPostDeclConversionNeed verifies that VAR-02 detects the pattern
+// of a typed var declaration immediately followed by an assignment that
+// converts the initialiser to the declared type.
 func TestFindPostDeclConversionNeed(t *testing.T) {
 	src := `package p
 func f() {

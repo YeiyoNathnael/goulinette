@@ -6,7 +6,8 @@ import (
 	"testing"
 )
 
-// TestIsZeroLiteralExpr documents this exported function.
+// TestIsZeroLiteralExpr verifies that isZeroLiteralExpr recognises the
+// canonical zero-value literals (0, "", false, nil) and rejects non-zero ones.
 func TestIsZeroLiteralExpr(t *testing.T) {
 	tests := []struct {
 		name string

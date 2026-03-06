@@ -8,7 +8,8 @@ import (
 	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
-// TestPrintTextSeverityColors documents this exported function.
+// TestPrintTextSeverityColors verifies that the text reporter decorates
+// error findings in red and warning findings in yellow ANSI escape codes.
 func TestPrintTextSeverityColors(t *testing.T) {
 	result := diag.Result{
 		Diagnostics: []diag.Finding{

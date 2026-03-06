@@ -34,7 +34,9 @@ func writeMAGFile(t *testing.T, dir, name, content string) string {
 	return path
 }
 
-// TestMAG01NumberLiteralRule documents this exported function.
+// TestMAG01NumberLiteralRule verifies that MAG-01 flags bare numeric
+// constants used outside of const declarations and allows values such as
+// 0, 1, and -1 that are conventionally considered non-magic.
 func TestMAG01NumberLiteralRule(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -128,7 +130,9 @@ func c() int { return 30 }
 	}
 }
 
-// TestMAG02StringLiteralRule documents this exported function.
+// TestMAG02StringLiteralRule verifies that MAG-02 flags string literals
+// that appear more than once in non-test code and should be extracted
+// to named constants.
 func TestMAG02StringLiteralRule(t *testing.T) {
 	tests := []struct {
 		name      string

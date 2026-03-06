@@ -22,7 +22,9 @@ func writeSAFFile(t *testing.T, dir, name, content string) string {
 	return path
 }
 
-// TestSAF01PointerReceiverForMutexStructs documents this exported function.
+// TestSAF01PointerReceiverForMutexStructs verifies that SAF-01 flags value
+// receivers on types that embed sync.Mutex, sync.RWMutex, or sync.Once,
+// and allows pointer receivers and *sync.Mutex pointer fields.
 func TestSAF01PointerReceiverForMutexStructs(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -125,7 +127,9 @@ func (s S) Touch() {}
 	}
 }
 
-// TestSAF02WaitGroupCopyPatterns documents this exported function.
+// TestSAF02WaitGroupCopyPatterns verifies that SAF-02 detects sync.WaitGroup,
+// sync.Once, and sync.Map values being copied by value: passed to goroutines
+// by value, assigned to another variable, or returned by value.
 func TestSAF02WaitGroupCopyPatterns(t *testing.T) {
 	tests := []struct {
 		name      string

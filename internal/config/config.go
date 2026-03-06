@@ -15,7 +15,10 @@ const (
 	maxStrictLevel = 3
 )
 
-// Settings documents this exported type.
+// Settings holds the fully parsed configuration for a single analysis run.
+// All fields are populated by ParseFlags and are read-only once the Runner
+// is constructed. Zero values are not valid; use ParseFlags to obtain a
+// properly defaulted instance.
 type Settings struct {
 	Root             string
 	Format           string
@@ -29,7 +32,12 @@ type Settings struct {
 	Timeout          time.Duration
 }
 
-// ParseFlags documents this exported function.
+// ParseFlags parses the provided CLI argument slice and returns a validated
+// Settings value. It defines all goulinette flags (--root, --format, --level,
+// --chapter, --rule, --disable, --warnings-as-errors, --strict-tools,
+// --max-workers, --timeout) and validates that --format is "text" or "json"
+// and that --level is in the range [0, 3]. An error is returned for any
+// unrecognised flag or invalid value.
 func ParseFlags(args []string) (Settings, error) {
 	fs := flag.NewFlagSet("goulinette", flag.ContinueOnError)
 
@@ -46,7 +54,7 @@ func ParseFlags(args []string) (Settings, error) {
 	fs.StringVar(&disableCSV, "disable", "", "comma-separated rule IDs to disable")
 	fs.BoolVar(&cfg.WarningsAsErrors, "warnings-as-errors", false, "treat warnings as errors")
 	fs.BoolVar(&cfg.StrictTools, "strict-tools", false, "fail when required external tools are missing")
-	fs.IntVar(&cfg.MaxWorkers, "max-workers", defaultWorkers, "max analysis workers")
+	fs.IntVar(&cfg.MaxWorkers, "max-workers", defaultWorkers, "number of rules to run in parallel (default 4)")
 	fs.DurationVar(&cfg.Timeout, flagTimeout, 2*time.Minute, "command timeout")
 
 	if err := fs.Parse(args); err != nil {

@@ -12,7 +12,8 @@ const (
 	fun02ParseFailHint = "parse failed: %v"
 )
 
-// TestErrorMustBeLast documents this exported function.
+// TestErrorMustBeLast verifies that FUN-02 flags function signatures where
+// an error return value appears in any position other than the last.
 func TestErrorMustBeLast(t *testing.T) {
 	tests := []struct {
 		name string

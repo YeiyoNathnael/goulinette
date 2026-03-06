@@ -11,7 +11,9 @@ const (
 	errMessageParseFailHint = "parse failed: %v"
 )
 
-// TestHasForbiddenErrorSuffix documents this exported function.
+// TestHasForbiddenErrorSuffix verifies that ERR-04/ERR-05 detection correctly
+// identifies error strings ending with punctuation or starting with an
+// upper-case letter, and passes well-formed lowercase messages.
 func TestHasForbiddenErrorSuffix(t *testing.T) {
 	tests := []struct {
 		name string
@@ -34,7 +36,9 @@ func TestHasForbiddenErrorSuffix(t *testing.T) {
 	}
 }
 
-// TestCollectErrorMessageLiterals documents this exported function.
+// TestCollectErrorMessageLiterals verifies that string literals used as
+// error messages inside fmt.Errorf and errors.New call expressions are
+// correctly collected from the AST.
 func TestCollectErrorMessageLiterals(t *testing.T) {
 	src := `package p
 import (

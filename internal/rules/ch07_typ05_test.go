@@ -11,7 +11,9 @@ const (
 	typParseErrFmt  = "parse failed: %v"
 )
 
-// TestCollectSingleValueAssertions documents this exported function.
+// TestCollectSingleValueAssertions verifies that single-value type assertions
+// of the form v := x.(T) are correctly collected from an AST, while
+// comma-ok assertions v, ok := x.(T) are not included.
 func TestCollectSingleValueAssertions(t *testing.T) {
 	src := `package p
 func f(x any) {
@@ -33,7 +35,9 @@ func f(x any) {
 	}
 }
 
-// TestTypeSwitchCaseExemption documents this exported function.
+// TestTypeSwitchCaseExemption verifies that TYP-05 does not report a
+// single-value type assertion whose expression is a case clause inside
+// a type-switch statement.
 func TestTypeSwitchCaseExemption(t *testing.T) {
 	src := `package p
 func f(x any) {

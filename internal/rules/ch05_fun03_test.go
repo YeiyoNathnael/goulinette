@@ -5,7 +5,9 @@ import (
 	"testing"
 )
 
-// TestShouldWarnInterfaceReturnTyped documents this exported function.
+// TestShouldWarnInterfaceReturnTyped verifies that FUN-03 detects functions
+// whose return type is a concrete type implementing an interface when the
+// caller would benefit from the broader interface type.
 func TestShouldWarnInterfaceReturnTyped(t *testing.T) {
 	iface := types.NewInterfaceType(nil, nil)
 	iface.Complete()

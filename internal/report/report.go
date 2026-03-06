@@ -6,7 +6,9 @@ import (
 	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
-// Print documents this exported function.
+// Print writes a formatted analysis report to w. When format is "json" the
+// output is a single JSON object; any other value (including the default
+// "text") produces the ANSI colour-coded human-readable text format.
 func Print(w io.Writer, format string, result diag.Result) {
 	if format == "json" {
 		printJSON(w, result)

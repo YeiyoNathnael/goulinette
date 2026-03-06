@@ -67,7 +67,7 @@ func collectSingleValueReceives(file *ast.File) []*ast.UnaryExpr {
 		}
 
 		if un, ok := n.(*ast.UnaryExpr); ok && un.Op == token.ARROW {
-			if !isTwoValueReceive(un, stack) {
+			if !isTwoValueReceive(un, stack) && !isSelectExprReceive(stack) {
 				out = append(out, un)
 			}
 		}
@@ -93,4 +93,18 @@ func isTwoValueReceive(un *ast.UnaryExpr, ancestors []ast.Node) bool {
 		return false
 	}
 	return false
+}
+
+// isSelectExprReceive reports whether the innermost two ancestors show that
+// this receive is a pure expression inside a select CommClause (i.e. the
+// canonical `case <-ctx.Done():` signal pattern). These receives discard the
+// value intentionally and do not benefit from comma-ok form.
+func isSelectExprReceive(ancestors []ast.Node) bool {
+	n := len(ancestors)
+	if n < 2 {
+		return false
+	}
+	_, parentIsExpr := ancestors[n-1].(*ast.ExprStmt)
+	_, grandIsComm := ancestors[n-2].(*ast.CommClause)
+	return parentIsExpr && grandIsComm
 }

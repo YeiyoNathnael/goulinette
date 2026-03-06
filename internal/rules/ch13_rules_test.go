@@ -42,7 +42,9 @@ func bodyWithNLines(n int) string {
 	return builder.String()
 }
 
-// TestLIM01FunctionLineLimits documents this exported function.
+// TestLIM01FunctionLineLimits verifies that LIM-01 reports any function
+// (including func literals) whose body exceeds 50 lines, and does not
+// fire for functions at or below the limit.
 func TestLIM01FunctionLineLimits(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -83,7 +85,9 @@ func TestLIM01FunctionLineLimits(t *testing.T) {
 	}
 }
 
-// TestLIM02ParameterCounting documents this exported function.
+// TestLIM02ParameterCounting verifies that LIM-02 counts grouped parameters
+// by name (not type), excludes the method receiver, and treats variadic
+// parameters as a single argument.
 func TestLIM02ParameterCounting(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -132,7 +136,9 @@ func f(a, b, c, d int, rest ...string) {}
 	}
 }
 
-// TestLIM03NestingDepth documents this exported function.
+// TestLIM03NestingDepth verifies that LIM-03 reports function bodies whose
+// control-flow nesting exceeds the allowed depth, and passes functions that
+// stay within the limit.
 func TestLIM03NestingDepth(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -201,7 +207,8 @@ func f(a, b, c, d bool) {
 	}
 }
 
-// TestLIM04FileLength documents this exported function.
+// TestLIM04FileLength verifies that LIM-04 flags source files exceeding
+// 500 lines and exempts test files from the file-length limit.
 func TestLIM04FileLength(t *testing.T) {
 	tests := []struct {
 		name      string

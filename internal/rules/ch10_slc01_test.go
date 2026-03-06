@@ -8,7 +8,9 @@ import (
 
 const slc01TestFilePerm = 0o644
 
-// TestSLC01 documents this exported function.
+// TestSLC01 verifies that SLC-01 flags slice comparisons against nil using
+// len() == 0 and other indirect nil checks, and does not fire on idiomatic
+// direct nil comparisons.
 func TestSLC01(t *testing.T) {
 	tests := []struct {
 		name      string

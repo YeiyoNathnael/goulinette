@@ -5,7 +5,9 @@ import (
 	"testing"
 )
 
-// TestHasMeaningfulZeroValue documents this exported function.
+// TestHasMeaningfulZeroValue verifies that types whose zero value carries
+// semantic meaning (bool, numeric, string) are distinguished from pointer
+// and interface types whose zero value (nil) is typically not meaningful.
 func TestHasMeaningfulZeroValue(t *testing.T) {
 	tests := []struct {
 		name string

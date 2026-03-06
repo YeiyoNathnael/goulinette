@@ -12,7 +12,9 @@ const (
 	typ07ParseErrFmt  = "parse failed: %v"
 )
 
-// TestContainsAnyType documents this exported function.
+// TestContainsAnyType verifies that containsAnyType detects struct fields
+// typed as interface{} or the any alias, and returns false for concretely
+// typed fields.
 func TestContainsAnyType(t *testing.T) {
 	src := `package p
 // S documents this exported type.
@@ -43,7 +45,9 @@ type S struct {
 	}
 }
 
-// TestHasAnyJustification documents this exported function.
+// TestHasAnyJustification verifies that a struct field of type any or
+// interface{} accompanied by an explanatory comment is treated as
+// justified and does not trigger TYP-07.
 func TestHasAnyJustification(t *testing.T) {
 	src := `package p
 // because dynamic JSON payload from external API

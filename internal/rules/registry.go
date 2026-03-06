@@ -2,7 +2,9 @@ package rules
 
 import "strings"
 
-// Registry documents this exported function.
+// Registry returns every rule known to goulinette, grouped by category
+// (style, behavior, architecture, reliability, test & magic-value rules).
+// Rules are returned in a stable order that mirrors chapter ordering.
 func Registry() []Rule {
 	rules := make([]Rule, 0)
 	rules = append(rules, registryStyleRules()...)
@@ -54,7 +56,10 @@ func registryTestAndMagicRules() []Rule {
 	return []Rule{NewMAG01(), NewMAG02(), NewTST01(), NewTST02(), NewTST03()}
 }
 
-// Select documents this exported function.
+// Select returns the subset of all that should run given the active filters.
+// A rule is excluded if its ID appears in disableRules, its chapter is not
+// in chapters (when the set is non-nil), or its ID is not in includeRules
+// (when that set is non-nil). All comparisons are case-insensitive.
 func Select(all []Rule, chapters map[int]struct{}, includeRules map[string]struct{}, disableRules map[string]struct{}) []Rule {
 	selected := make([]Rule, 0, len(all))
 	for _, rule := range all {

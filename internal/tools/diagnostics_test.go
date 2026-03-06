@@ -6,7 +6,9 @@ import (
 	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
-// TestParseOutputDiagnosticsWithPosition documents this exported function.
+// TestParseOutputDiagnosticsWithPosition verifies that
+// ParseOutputDiagnostics correctly decodes tool output lines that carry
+// "file:line:col: message" position information.
 func TestParseOutputDiagnosticsWithPosition(t *testing.T) {
 	input := "a/b/c.go:12:8: something bad"
 	ds := ParseOutputDiagnostics(input, "FMT-02", "go vet", diag.SeverityError)
@@ -18,7 +20,9 @@ func TestParseOutputDiagnosticsWithPosition(t *testing.T) {
 	}
 }
 
-// TestParseOutputDiagnosticsWithoutPosition documents this exported function.
+// TestParseOutputDiagnosticsWithoutPosition verifies that
+// ParseOutputDiagnostics handles lines that lack position information by
+// returning findings whose message field contains the raw line text.
 func TestParseOutputDiagnosticsWithoutPosition(t *testing.T) {
 	input := "plain message"
 	ds := ParseOutputDiagnostics(input, "FMT-03", "staticcheck", diag.SeverityWarning)

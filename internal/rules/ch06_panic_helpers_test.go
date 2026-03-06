@@ -13,7 +13,9 @@ const (
 	panicHelpersParseFailHint = "parse failed: %v"
 )
 
-// TestIsRecoverInDeferredAnonymousFunc documents this exported function.
+// TestIsRecoverInDeferredAnonymousFunc verifies that a recover() call is
+// recognised as valid only when it appears directly inside a deferred
+// anonymous function, not in a regular or non-deferred closure.
 func TestIsRecoverInDeferredAnonymousFunc(t *testing.T) {
 	src := `package p
 func f() {
@@ -37,7 +39,9 @@ func f() {
 	}
 }
 
-// TestIsOperationalPanicArg documents this exported function.
+// TestIsOperationalPanicArg verifies that panic arguments containing
+// "impossible", "invariant", or "unreachable" keywords are classified as
+// operational (expected programmer-assertion panics) rather than violations.
 func TestIsOperationalPanicArg(t *testing.T) {
 	info := &types.Info{}
 	msg := &ast.BasicLit{Kind: token.STRING, Value: "\"failed to connect\""}

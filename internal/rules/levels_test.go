@@ -2,7 +2,9 @@ package rules
 
 import "testing"
 
-// TestIDsForLevel documents this exported function.
+// TestIDsForLevel verifies that IDsForLevel returns the correct superset of
+// rule IDs for each level from 0 to 3, with each higher level strictly
+// including all rules from the levels below it.
 func TestIDsForLevel(t *testing.T) {
 	tests := []struct {
 		name        string

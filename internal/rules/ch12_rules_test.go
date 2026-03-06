@@ -24,7 +24,9 @@ func writeModuleFileCER(t *testing.T, dir, name, content string) string {
 	return path
 }
 
-// TestCER01ReturnsErrorInterface documents this exported function.
+// TestCER01ReturnsErrorInterface verifies that CER-01 flags functions that
+// return a concrete error type (e.g. *MyError) instead of the error
+// interface, and does not fire on functions returning error directly.
 func TestCER01ReturnsErrorInterface(t *testing.T) {
 	dir := t.TempDir()
 	_ = writeModuleFileCER(t, dir, cerGoModFile, "module example.com/cer01\n\ngo 1.22\n")
@@ -61,7 +63,9 @@ func Good() error { return nil }
 	}
 }
 
-// TestCER02ConcreteErrorVarDeclarations documents this exported function.
+// TestCER02ConcreteErrorVarDeclarations verifies that CER-02 flags
+// package-level variable declarations whose type is a concrete error struct
+// rather than the error interface.
 func TestCER02ConcreteErrorVarDeclarations(t *testing.T) {
 	dir := t.TempDir()
 	_ = writeModuleFileCER(t, dir, cerGoModFile, "module example.com/cer02\n\ngo 1.22\n")
@@ -90,7 +94,9 @@ func (e *LaterError) Error() string { return "later" }
 	}
 }
 
-// TestCER03UnassignedConcreteErrorReturn documents this exported function.
+// TestCER03UnassignedConcreteErrorReturn verifies that CER-03 detects
+// concrete error variables that are declared but never populated before
+// being returned, leaving the caller with an unexpected non-nil typed nil.
 func TestCER03UnassignedConcreteErrorReturn(t *testing.T) {
 	tests := []struct {
 		name      string

@@ -2,7 +2,8 @@ package rules
 
 import "testing"
 
-// TestIsAllCapsStyle documents this exported function.
+// TestIsAllCapsStyle verifies that isAllCapsStyle correctly distinguishes
+// ALL_CAPS identifiers (screaming snake-case) from camelCase and lowercase.
 func TestIsAllCapsStyle(t *testing.T) {
 	tests := []struct {
 		name  string

@@ -14,7 +14,12 @@ const (
 	messageIdxWithColumn = 3
 )
 
-// ParseOutputDiagnostics documents this exported function.
+// ParseOutputDiagnostics converts the line-oriented text output of an external
+// tool (e.g. staticcheck, errcheck) into a slice of diag.Finding values.
+// It expects each line to follow the convention "file:line:col: message" or
+// "file:line: message"; lines that don't parse as positional diagnostics are
+// returned as findings without position information so that no output is
+// silently dropped. Empty lines and lines beginning with '#' are ignored.
 func ParseOutputDiagnostics(output, ruleID, tool string, severity diag.Severity) []diag.Finding {
 	diagnostics := make([]diag.Finding, 0)
 	for _, raw := range strings.Split(output, "\n") {

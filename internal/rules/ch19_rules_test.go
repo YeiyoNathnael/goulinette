@@ -23,7 +23,9 @@ func writeTSTFile(t *testing.T, dir, name, content string) string {
 	return path
 }
 
-// TestTST01TableDrivenHeuristics documents this exported function.
+// TestTST01TableDrivenHeuristics verifies that TST-01 detects test
+// functions that manually call t.Run with repeated argument patterns
+// where a table-driven approach would be more idiomatic.
 func TestTST01TableDrivenHeuristics(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -100,7 +102,9 @@ func ExampleParse() {}
 	}
 }
 
-// TestTST02HelperFirstStatement documents this exported function.
+// TestTST02HelperFirstStatement verifies that TST-02 requires t.Helper()
+// to be the first statement in any function that calls t.Helper(), and
+// flags functions where it appears after other statements.
 func TestTST02HelperFirstStatement(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -186,7 +190,9 @@ func TestX(t *testing.T) { requireTB(t) }
 	}
 }
 
-// TestTST03TimeSleepInTests documents this exported function.
+// TestTST03TimeSleepInTests verifies that TST-03 flags time.Sleep calls
+// inside test files as errors, resolves aliased time imports, and does
+// not fire on non-test production files.
 func TestTST03TimeSleepInTests(t *testing.T) {
 	tests := []struct {
 		name         string

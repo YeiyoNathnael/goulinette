@@ -26,7 +26,9 @@ func writeModuleFile(t *testing.T, dir, name, content string) string {
 	return path
 }
 
-// TestCON01ExportedAPIExposure documents this exported function.
+// TestCON01ExportedAPIExposure verifies that CON-01 flags exported functions
+// that accept or return bare channel types, which leaks concurrency
+// implementation details through the public API.
 func TestCON01ExportedAPIExposure(t *testing.T) {
 	dir := t.TempDir()
 	_ = writeModuleFile(t, dir, goModFileName, "module example.com/con01\n\ngo 1.22\n")
@@ -63,7 +65,9 @@ func ReturnChan() chan int {
 	}
 }
 
-// TestCON02HeuristicCancellationSignals documents this exported function.
+// TestCON02HeuristicCancellationSignals verifies that CON-02 detects
+// goroutine launch sites that lack a context or done-channel cancellation
+// mechanism, and does not fire when a proper signal is present.
 func TestCON02HeuristicCancellationSignals(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -130,7 +134,9 @@ func f(ctx context.Context) {
 	}
 }
 
-// TestCON03ConservativeOwnershipWarnings documents this exported function.
+// TestCON03ConservativeOwnershipWarnings verifies that CON-03 warns when a
+// channel is closed or written by more than one goroutine without a
+// sync.WaitGroup coordinating ownership.
 func TestCON03ConservativeOwnershipWarnings(t *testing.T) {
 	tests := []struct {
 		name        string

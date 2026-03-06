@@ -7,7 +7,8 @@ import (
 	"testing"
 )
 
-// TestHasNamedReturns documents this exported function.
+// TestHasNamedReturns verifies that hasNamedReturns correctly identifies
+// function type signatures that declare named return values.
 func TestHasNamedReturns(t *testing.T) {
 	tests := []struct {
 		name string

@@ -23,7 +23,10 @@ func writeGoFile(t *testing.T, dir, name, content string) string {
 	return path
 }
 
-// TestDOC01ToDOC04 documents this exported function.
+// TestDOC01ToDOC04 verifies all four basic documentation rules: DOC-01
+// (blank line between comment and declaration), DOC-02 (block comments
+// forbidden), DOC-03 (comment must start with symbol name), and DOC-04
+// (exported symbols must have a doc comment).
 func TestDOC01ToDOC04(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -96,7 +99,9 @@ func Exported() {}
 	}
 }
 
-// TestDOC05InitRestrictions documents this exported function.
+// TestDOC05InitRestrictions verifies that DOC-05 flags init() functions
+// that appear in files where they are prohibited by the project's
+// documentation policy.
 func TestDOC05InitRestrictions(t *testing.T) {
 	tests := []struct {
 		name      string

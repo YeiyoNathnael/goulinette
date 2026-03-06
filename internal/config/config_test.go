@@ -4,7 +4,8 @@ import "testing"
 
 const levelFlag = "--level"
 
-// TestParseFlagsLevelValidation documents this exported function.
+// TestParseFlagsLevelValidation verifies that ParseFlags rejects --level
+// values outside the valid range [0, 3] and accepts boundary values.
 func TestParseFlagsLevelValidation(t *testing.T) {
 	tests := []struct {
 		name    string

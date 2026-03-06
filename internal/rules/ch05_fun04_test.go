@@ -14,7 +14,9 @@ const (
 	fun04ThreeReturns    = 3
 )
 
-// TestCountFuncReturns documents this exported function.
+// TestCountFuncReturns verifies that countFuncReturns returns the correct
+// number of return statements reachable within a function body, including
+// those inside nested function literals.
 func TestCountFuncReturns(t *testing.T) {
 	tests := []struct {
 		name string

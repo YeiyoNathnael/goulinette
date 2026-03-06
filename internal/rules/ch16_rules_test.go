@@ -22,7 +22,9 @@ func writeRESFile(t *testing.T, dir, name, content string) string {
 	return path
 }
 
-// TestRES01DeferClosePatterns documents this exported function.
+// TestRES01DeferClosePatterns verifies that RES-01 flags file opens,
+// network dials, and other resource acquisitions that are not followed
+// by a matching defer to close or release the resource.
 func TestRES01DeferClosePatterns(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -116,7 +118,9 @@ func f(path string) error {
 	}
 }
 
-// TestRES02DeferInLoop documents this exported function.
+// TestRES02DeferInLoop verifies that RES-02 flags defer statements that
+// appear directly inside a for/range loop body, where the deferred call
+// will not execute until the enclosing function returns.
 func TestRES02DeferInLoop(t *testing.T) {
 	tests := []struct {
 		name      string

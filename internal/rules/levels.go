@@ -30,7 +30,11 @@ var level3Rules = []string{
 	ruleLIM01, ruleLIM02, ruleLIM03, ruleLIM04, ruleCTX04,
 }
 
-// IDsForLevel documents this exported function.
+// IDsForLevel returns the set of rule IDs that are active at the given
+// strictness level. Level 0 enables a baseline of high-value, low-noise
+// rules; each higher level (1, 2, 3) adds progressively more thorough
+// checks. Levels below 0 return an empty set; levels above 3 are treated
+// as 3. The returned map uses upper-case IDs as keys.
 func IDsForLevel(level int) map[string]struct{} {
 	out := make(map[string]struct{})
 	if level < minLevel {

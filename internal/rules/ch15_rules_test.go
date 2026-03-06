@@ -22,7 +22,9 @@ func writeIMPFile(t *testing.T, dir, name, content string) string {
 	return path
 }
 
-// TestIMP01Grouping documents this exported function.
+// TestIMP01Grouping verifies that IMP-01 requires import declarations to
+// follow the stdlib / external / internal three-group convention and flags
+// any deviation from that ordering.
 func TestIMP01Grouping(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -74,7 +76,8 @@ func f() { fmt.Println(errors.New(x.Name)) }
 	}
 }
 
-// TestIMP02UnusedImports documents this exported function.
+// TestIMP02UnusedImports verifies that IMP-02 reports import paths that
+// are listed in the import block but never referenced in the file body.
 func TestIMP02UnusedImports(t *testing.T) {
 	dir := t.TempDir()
 	file := writeIMPFile(t, dir, impSampleGoFile, `package sample
@@ -94,7 +97,9 @@ func f() { fmt.Println("ok") }
 	}
 }
 
-// TestIMP03AliasPolicy documents this exported function.
+// TestIMP03AliasPolicy verifies that IMP-03 flags import aliases that
+// shadow the last path segment, rename stdlib packages to single-letter
+// names, or otherwise violate the alias-naming policy.
 func TestIMP03AliasPolicy(t *testing.T) {
 	tests := []struct {
 		name      string

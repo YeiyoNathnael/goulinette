@@ -27,7 +27,9 @@ func writeCTXFile(t *testing.T, dir, name, content string) string {
 	return path
 }
 
-// TestCTX01ContextFirstParameter documents this exported function.
+// TestCTX01ContextFirstParameter verifies that CTX-01 flags functions,
+// methods, and interface methods where a context.Context parameter appears
+// in any position other than first.
 func TestCTX01ContextFirstParameter(t *testing.T) {
 	dir := t.TempDir()
 	_ = writeCTXFile(t, dir, ctxFileGoMod, ctxModule01)
@@ -63,7 +65,9 @@ var _ = func(a int, ctx ctxpkg.Context) {}
 	}
 }
 
-// TestCTX02ContextStoredInStruct documents this exported function.
+// TestCTX02ContextStoredInStruct verifies that CTX-02 flags struct fields
+// whose declared type is context.Context (by value or pointer), and does
+// not fire on struct fields of unrelated types.
 func TestCTX02ContextStoredInStruct(t *testing.T) {
 	dir := t.TempDir()
 	_ = writeCTXFile(t, dir, ctxFileGoMod, ctxModule02)
@@ -96,7 +100,9 @@ type C struct {
 	}
 }
 
-// TestCTX03NilContextHeuristics documents this exported function.
+// TestCTX03NilContextHeuristics verifies that CTX-03 detects call sites
+// that pass an uninitialised context variable or an explicit nil where a
+// context.Context argument is expected.
 func TestCTX03NilContextHeuristics(t *testing.T) {
 	tests := []struct {
 		name      string

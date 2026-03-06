@@ -21,7 +21,9 @@ func writeNAMFile(t *testing.T, dir, name, content string) string {
 	return path
 }
 
-// TestNAM03ScopeProportionality documents this exported function.
+// TestNAM03ScopeProportionality verifies that NAM-03 flags single-letter
+// variables used across a long scope and overly long names used in a
+// short scope.
 func TestNAM03ScopeProportionality(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -98,7 +100,8 @@ func f() {
 	}
 }
 
-// TestNAM04PackageLevelDescriptiveNames documents this exported function.
+// TestNAM04PackageLevelDescriptiveNames verifies that NAM-04 flags
+// short or cryptic package-level variable and constant names.
 func TestNAM04PackageLevelDescriptiveNames(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -140,7 +143,8 @@ const userIdentifier = "x"
 	}
 }
 
-// TestNAM05InterfaceErSuffix documents this exported function.
+// TestNAM05InterfaceErSuffix verifies that NAM-05 flags exported interface
+// types whose names do not end in the conventional "-er" suffix.
 func TestNAM05InterfaceErSuffix(t *testing.T) {
 	tests := []struct {
 		name      string

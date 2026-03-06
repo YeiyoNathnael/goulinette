@@ -50,6 +50,31 @@ func (s S) Read() { s.rw.RLock(); s.rw.RUnlock() }
 			wantCount: 1,
 		},
 		{
+			name: "value receiver with sync.Once fails",
+			source: `package sample
+import "sync"
+type Runner struct { once sync.Once }
+func (r Runner) Run(f func()) { r.once.Do(f) }
+`,
+			wantCount: 1,
+		},
+		{
+			name: "embedded noCopy sentinel with value receiver fails",
+			source: `package sample
+type noCopy struct{}
+func (*noCopy) Lock() {}
+func (*noCopy) Unlock() {}
+
+type Buffer struct {
+	noCopy
+	data []byte
+}
+
+func (b Buffer) Len() int { return len(b.data) }
+`,
+			wantCount: 1,
+		},
+		{
 			name: "pointer to mutex field is allowed",
 			source: `package sample
 import "sync"
@@ -93,6 +118,18 @@ func f() {
 	wg.Add(1)
 	go worker(wg)
 	wg.Wait()
+}
+`,
+			wantCount: 1,
+		},
+		{
+			name: "goroutine passing sync.Once by value fails",
+			source: `package sample
+import "sync"
+func worker(o sync.Once) {}
+func f() {
+	var once sync.Once
+	go worker(once)
 }
 `,
 			wantCount: 1,
@@ -146,6 +183,40 @@ func f() {
 	j.wg.Add(1)
 	go worker(j)
 	j.wg.Wait()
+}
+`,
+			wantCount: 1,
+		},
+		{
+			name: "sync.Map assignment copy fails",
+			source: `package sample
+import "sync"
+func f() {
+	var a sync.Map
+	var b sync.Map
+	b = a
+	_ = b
+}
+`,
+			wantCount: 1,
+		},
+		{
+			name: "embedded noCopy assignment copy fails",
+			source: `package sample
+type noCopy struct{}
+func (*noCopy) Lock() {}
+func (*noCopy) Unlock() {}
+
+type Item struct {
+	noCopy
+	v int
+}
+
+func f() {
+	var a Item
+	var b Item
+	b = a
+	_ = b
 }
 `,
 			wantCount: 1,

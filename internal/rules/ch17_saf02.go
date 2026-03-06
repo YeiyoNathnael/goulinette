@@ -60,31 +60,23 @@ func saf02CheckGoStmt(gs *ast.GoStmt, info *types.Info, fset *token.FileSet) []d
 	}
 
 	call := gs.Call
-	sig, ok := info.TypeOf(call.Fun).(*types.Signature)
-	if !ok || sig == nil || sig.Params() == nil {
+	if call.Fun == nil {
 		return nil
 	}
 
 	diagnostics := make([]diag.Diagnostic, 0)
-	for i, arg := range call.Args {
-		if i >= sig.Params().Len() {
-			break
-		}
-		paramType := sig.Params().At(i).Type()
-		if !containsWaitGroupValue(paramType, map[types.Type]bool{}) {
-			continue
-		}
+	for _, arg := range call.Args {
 		argType := info.TypeOf(arg)
-		if !containsWaitGroupValue(argType, map[types.Type]bool{}) {
+		if !containsCopySensitiveValue(argType, map[types.Type]bool{}) {
 			continue
 		}
 		pos := fset.Position(arg.Pos())
 		diagnostics = append(diagnostics, diag.Diagnostic{
 			RuleID:   "SAF-02",
 			Severity: diag.SeverityError,
-			Message:  "sync.WaitGroup must not be passed by value in goroutine launch",
+			Message:  "copy-sensitive sync/noCopy value must not be passed by value in goroutine launch",
 			Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-			Hint:     "pass *sync.WaitGroup (e.g. go worker(&wg))",
+			Hint:     "pass pointers for sync/noCopy-bearing values",
 		})
 	}
 
@@ -108,7 +100,7 @@ func saf02CheckAssignStmt(as *ast.AssignStmt, info *types.Info, fset *token.File
 
 		lhsType := info.TypeOf(lhs)
 		rhsType := info.TypeOf(rhs)
-		if !containsWaitGroupValue(lhsType, map[types.Type]bool{}) || !containsWaitGroupValue(rhsType, map[types.Type]bool{}) {
+		if !containsCopySensitiveValue(lhsType, map[types.Type]bool{}) || !containsCopySensitiveValue(rhsType, map[types.Type]bool{}) {
 			continue
 		}
 
@@ -116,9 +108,9 @@ func saf02CheckAssignStmt(as *ast.AssignStmt, info *types.Info, fset *token.File
 		diagnostics = append(diagnostics, diag.Diagnostic{
 			RuleID:   "SAF-02",
 			Severity: diag.SeverityError,
-			Message:  "sync.WaitGroup must not be copied by assignment",
+			Message:  "copy-sensitive sync/noCopy value must not be copied by assignment",
 			Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-			Hint:     "store and pass wait groups by pointer",
+			Hint:     "store and pass sync/noCopy-bearing values by pointer",
 		})
 	}
 
@@ -151,7 +143,7 @@ func saf02CheckDeclStmt(ds *ast.DeclStmt, info *types.Info, fset *token.FileSet)
 
 			lhsType := info.TypeOf(vs.Names[i])
 			rhsType := info.TypeOf(rhs)
-			if !containsWaitGroupValue(lhsType, map[types.Type]bool{}) || !containsWaitGroupValue(rhsType, map[types.Type]bool{}) {
+			if !containsCopySensitiveValue(lhsType, map[types.Type]bool{}) || !containsCopySensitiveValue(rhsType, map[types.Type]bool{}) {
 				continue
 			}
 
@@ -159,9 +151,9 @@ func saf02CheckDeclStmt(ds *ast.DeclStmt, info *types.Info, fset *token.FileSet)
 			diagnostics = append(diagnostics, diag.Diagnostic{
 				RuleID:   "SAF-02",
 				Severity: diag.SeverityError,
-				Message:  "sync.WaitGroup must not be copied in variable initialization",
+				Message:  "copy-sensitive sync/noCopy value must not be copied in variable initialization",
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-				Hint:     "use pointer values for wait groups",
+				Hint:     "use pointer values for sync/noCopy-bearing data",
 			})
 		}
 	}
@@ -177,7 +169,7 @@ func saf02CheckReturnStmt(rs *ast.ReturnStmt, info *types.Info, fset *token.File
 	diagnostics := make([]diag.Diagnostic, 0)
 	for _, result := range rs.Results {
 		rt := info.TypeOf(result)
-		if !containsWaitGroupValue(rt, map[types.Type]bool{}) {
+		if !containsCopySensitiveValue(rt, map[types.Type]bool{}) {
 			continue
 		}
 
@@ -185,9 +177,9 @@ func saf02CheckReturnStmt(rs *ast.ReturnStmt, info *types.Info, fset *token.File
 		diagnostics = append(diagnostics, diag.Diagnostic{
 			RuleID:   "SAF-02",
 			Severity: diag.SeverityError,
-			Message:  "sync.WaitGroup must not be returned by value",
+			Message:  "copy-sensitive sync/noCopy value must not be returned by value",
 			Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-			Hint:     "return *sync.WaitGroup instead",
+			Hint:     "return pointer types for sync/noCopy-bearing values",
 		})
 	}
 

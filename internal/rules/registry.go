@@ -62,6 +62,9 @@ func Registry() []Rule {
 		NewCTX02(),
 		NewCTX03(),
 		NewCTX04(),
+		NewIMP01(),
+		NewIMP02(),
+		NewIMP03(),
 	}
 }
 

@@ -120,7 +120,7 @@ func containsForbiddenConcurrencyType(t types.Type, seen map[types.Type]bool) (b
 	if t == nil {
 		return false, ""
 	}
-	if seen[t] {
+	if visited, ok := seen[t]; ok && visited {
 		return false, ""
 	}
 	seen[t] = true

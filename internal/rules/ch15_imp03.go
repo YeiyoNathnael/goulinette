@@ -30,7 +30,13 @@ func (imp03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 	for _, pf := range parsed {
 		defaultNameCount := make(map[string]int)
 		for _, imp := range pf.File.Imports {
-			defaultNameCount[defaultImportName(imp.Path.Value)]++
+			key := defaultImportName(imp.Path.Value)
+			count, ok := defaultNameCount[key]
+			if !ok {
+				defaultNameCount[key] = 1
+				continue
+			}
+			defaultNameCount[key] = count + 1
 		}
 
 		for _, imp := range pf.File.Imports {
@@ -80,7 +86,8 @@ func (imp03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 			if alias == defaultName {
 				continue
 			}
-			if defaultNameCount[defaultName] > 1 {
+			count, ok := defaultNameCount[defaultName]
+			if ok && count > 1 {
 				continue
 			}
 

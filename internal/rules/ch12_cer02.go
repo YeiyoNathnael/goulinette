@@ -95,7 +95,7 @@ func collectPackageConcreteErrorTypes(pkg *packages.Package) []types.Type {
 
 		if isConcreteErrorType(tn.Type()) {
 			key := types.TypeString(tn.Type(), nil)
-			if !seen[key] {
+			if exists, ok := seen[key]; !ok || !exists {
 				seen[key] = true
 				result = append(result, tn.Type())
 			}
@@ -104,7 +104,7 @@ func collectPackageConcreteErrorTypes(pkg *packages.Package) []types.Type {
 		ptr := types.NewPointer(tn.Type())
 		if isConcreteErrorType(ptr) {
 			key := types.TypeString(ptr, nil)
-			if !seen[key] {
+			if exists, ok := seen[key]; !ok || !exists {
 				seen[key] = true
 				result = append(result, ptr)
 			}

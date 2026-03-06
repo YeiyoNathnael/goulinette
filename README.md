@@ -110,6 +110,36 @@ path/to/file.go:12:5: error [CTX-03] nil must not be passed as context.Context
 runtime: FMT-02: tool "go" not found in PATH
 ```
 
+Text output is ANSI-colorized for readability:
+- **Severity**: `error` in **bold red**, `warning` in yellow.
+- **Broken rule ID**: highlighted with an actual color (not just bold).
+- **File location**: rendered in dim gray to reduce visual noise.
+
+Fixed chapter color mapping (not runtime-random):
+- Rule IDs are color-grouped by chapter prefix and always use the same preselected color.
+- Colors are enforced in code and do not change between runs.
+
+Chapter palette (ANSI 256 colors):
+- Chapter 1 (`FMT-*`) → `39`
+- Chapter 2 (`NAM-*`) → `208`
+- Chapter 3 (`VAR-*`) → `45`
+- Chapter 4 (`CTL-*`) → `171`
+- Chapter 5 (`FUN-*`) → `220`
+- Chapter 6 (`ERR-*`) → `196`
+- Chapter 7 (`TYP-*`) → `51`
+- Chapter 8 (`STR-*`) → `99`
+- Chapter 9 (`DOC-*`) → `34`
+- Chapter 10 (`SLC-*`) → `214`
+- Chapter 11 (`CON-*`) → `129`
+- Chapter 12 (`CER-*`) → `44`
+- Chapter 13 (`LIM-*`) → `177`
+- Chapter 14 (`CTX-*`) → `81`
+- Chapter 15 (`IMP-*`) → `203`
+- Chapter 16 (`RES-*`) → `141`
+- Chapter 17 (`SAF-*`) → `40`
+- Chapter 18 (`MAG-*`) → `201`
+- Chapter 19 (`TST-*`) → `93`
+
 ## JSON
 
 ```json

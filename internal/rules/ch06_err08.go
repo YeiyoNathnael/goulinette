@@ -41,7 +41,8 @@ func (err08Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 
 			for _, pc := range panicCalls {
 				fname := enclosingFuncName(pc.ancestors)
-				if fname == "" || !recoverByFunc[fname] {
+				recovered, ok := recoverByFunc[fname]
+				if fname == "" || !ok || !recovered {
 					continue
 				}
 				if len(pc.call.Args) == 0 || !isOperationalPanicArg(pc.call.Args[0], pkg.TypesInfo) {

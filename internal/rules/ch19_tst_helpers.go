@@ -196,13 +196,15 @@ func isTestingParamTypeExpr(expr ast.Expr, aliases map[string]string) bool {
 		if !ok || sel.Sel == nil {
 			return false
 		}
-		return aliases[id.Name] == "testing" && sel.Sel.Name == "T"
+		alias, _ := aliases[id.Name]
+		return alias == "testing" && sel.Sel.Name == "T"
 	case *ast.SelectorExpr:
 		id, ok := t.X.(*ast.Ident)
 		if !ok || t.Sel == nil {
 			return false
 		}
-		return aliases[id.Name] == "testing" && t.Sel.Name == "TB"
+		alias, _ := aliases[id.Name]
+		return alias == "testing" && t.Sel.Name == "TB"
 	default:
 		return false
 	}
@@ -226,7 +228,11 @@ func callsTestingMethods(body *ast.BlockStmt, params map[string]bool) bool {
 			return true
 		}
 		recv, ok := sel.X.(*ast.Ident)
-		if !ok || !params[recv.Name] {
+		if !ok {
+			return true
+		}
+		active, _ := params[recv.Name]
+		if !active {
 			return true
 		}
 		switch sel.Sel.Name {
@@ -260,7 +266,8 @@ func firstStmtIsHelper(body *ast.BlockStmt, params map[string]bool) bool {
 	if !ok {
 		return false
 	}
-	return params[recv.Name]
+	active, _ := params[recv.Name]
+	return active
 }
 
 func isTRunCall(call *ast.CallExpr, params map[string]bool) bool {
@@ -272,7 +279,11 @@ func isTRunCall(call *ast.CallExpr, params map[string]bool) bool {
 		return false
 	}
 	recv, ok := sel.X.(*ast.Ident)
-	if !ok || !params[recv.Name] {
+	if !ok {
+		return false
+	}
+	active, _ := params[recv.Name]
+	if !active {
 		return false
 	}
 	return true
@@ -339,12 +350,14 @@ func isTimeSleepCallAST(call *ast.CallExpr, aliases map[string]string, dots map[
 		if !ok {
 			return false
 		}
-		return aliases[recv.Name] == "time"
+		alias, _ := aliases[recv.Name]
+		return alias == "time"
 	case *ast.Ident:
 		if fn.Name != "Sleep" {
 			return false
 		}
-		return dots["time"]
+		dot, _ := dots["time"]
+		return dot
 	default:
 		return false
 	}

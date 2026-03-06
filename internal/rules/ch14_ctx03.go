@@ -68,8 +68,8 @@ func cloneCtxAssignState(in ctxAssignState) ctxAssignState {
 func intersectCtxAssignState(a, b ctxAssignState) ctxAssignState {
 	out := make(ctxAssignState, len(a))
 	for k, va := range a {
-		vb := b[k]
-		out[k] = va && vb
+		vb, ok := b[k]
+		out[k] = va && ok && vb
 	}
 	return out
 }

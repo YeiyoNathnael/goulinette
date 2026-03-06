@@ -15,6 +15,10 @@ func Registry() []Rule {
 		NewVAR02(),
 		NewVAR03(),
 		NewVAR04(),
+		NewCTL01(),
+		NewCTL02(),
+		NewCTL03(),
+		NewCTL04(),
 	}
 }
 

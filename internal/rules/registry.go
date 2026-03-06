@@ -20,6 +20,7 @@ func Registry() []Rule {
 		NewCTL03(),
 		NewCTL04(),
 		NewFUN01(),
+		NewFUN02(),
 	}
 }
 

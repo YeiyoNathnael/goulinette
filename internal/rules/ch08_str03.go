@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"goulinette/internal/diag"
+
 	"golang.org/x/tools/go/packages"
 )
 

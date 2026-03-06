@@ -29,12 +29,12 @@ func (str01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 	}
 
 	type methodRec struct {
-		filePath      string
-		line          int
-		col           int
-		receiverName  string
-		receiverType  string
-		functionName  string
+		filePath     string
+		line         int
+		col          int
+		receiverName string
+		receiverType string
+		functionName string
 	}
 
 	byType := map[string][]methodRec{}

@@ -62,6 +62,80 @@ go build -o goulinette ./cmd/goulinette
 
 ---
 
+## How invocation works (clear behavior)
+
+### Running `./goulinette` with no flags
+
+```bash
+./goulinette
+```
+
+This is equivalent to:
+
+```bash
+./goulinette --root . --format text --level 1
+```
+
+Behavior:
+- Scans the current directory recursively for Go files.
+- Runs the default rule set for level `1`.
+- Prints human-readable colored text diagnostics.
+- Returns exit code `0`, `1`, or `2` (see Exit codes).
+
+### `--root` behavior
+
+- `--root .`: scan current directory.
+- `--root /path/to/repo`: scan that repository/path instead.
+- Discovery skips common non-source folders such as `.git`, `vendor`, and `node_modules`.
+
+Example:
+
+```bash
+./goulinette --root /home/user/myservice
+```
+
+### What each flag does
+
+- `--format text|json`
+  - `text`: colored human-readable output.
+  - `json`: machine-readable output for CI/reporting.
+
+- `--level 0..3`
+  - Selects the default strictness tier.
+  - Default is `1`.
+
+- `--chapter 1,2,14`
+  - Filters active rules to the listed chapters.
+
+- `--rule CTX-01,CTX-04`
+  - Explicit rule include list.
+  - Takes precedence over level-based selection.
+
+- `--disable RULE1,RULE2`
+  - Removes specific rules from the active selection after includes/filters.
+
+- `--warnings-as-errors`
+  - Treats warnings as failing diagnostics (affects exit behavior).
+
+- `--strict-tools`
+  - Fails hard when required external tools are missing instead of soft-degrading.
+
+- `--max-workers N`
+  - Configures worker limit (currently reserved/plumbed for scheduling control).
+
+- `--timeout 2m`
+  - Timeout budget for external tool invocations.
+
+### Flag precedence (important)
+
+Selection is applied in this order:
+1. Start from `--level` defaults.
+2. If `--rule` is provided, use that explicit include set instead.
+3. Apply `--chapter` filter.
+4. Apply `--disable` exclusions.
+
+---
+
 ## CLI reference
 
 ```text

@@ -10,25 +10,33 @@ import (
 
 type ctx03Rule struct{}
 
+const (
+	ctx03Chapter = 14
+)
+
+// NewCTX03 returns the CTX03 rule implementation.
 func NewCTX03() Rule {
 	return ctx03Rule{}
 }
 
+// ID returns the rule identifier.
 func (ctx03Rule) ID() string {
-	return "CTX-03"
+	return ruleCTX03
 }
 
+// Chapter returns the chapter number for this rule.
 func (ctx03Rule) Chapter() int {
-	return 14
+	return ctx03Chapter
 }
 
-func (ctx03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (ctx03Rule) Run(ctx Context) ([]diag.Finding, error) {
 	pkgs, err := loadTypedPackages(ctx.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pkg := range pkgs {
 		for _, file := range pkg.Syntax {
 			for _, decl := range file.Decls {
@@ -74,12 +82,12 @@ func intersectCtxAssignState(a, b ctxAssignState) ctxAssignState {
 	return out
 }
 
-func analyzeCTX03StmtList(stmts []ast.Stmt, in ctxAssignState, info *types.Info, fset *token.FileSet) (ctxAssignState, []diag.Diagnostic) {
+func analyzeCTX03StmtList(stmts []ast.Stmt, in ctxAssignState, info *types.Info, fset *token.FileSet) (ctxAssignState, []diag.Finding) {
 	state := cloneCtxAssignState(in)
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 
 	for _, stmt := range stmts {
-		var ds []diag.Diagnostic
+		var ds []diag.Finding
 		state, ds = analyzeCTX03Stmt(stmt, state, info, fset)
 		diagnostics = append(diagnostics, ds...)
 	}
@@ -87,121 +95,158 @@ func analyzeCTX03StmtList(stmts []ast.Stmt, in ctxAssignState, info *types.Info,
 	return state, diagnostics
 }
 
-func analyzeCTX03Stmt(stmt ast.Stmt, in ctxAssignState, info *types.Info, fset *token.FileSet) (ctxAssignState, []diag.Diagnostic) {
+func analyzeCTX03Stmt(stmt ast.Stmt, in ctxAssignState, info *types.Info, fset *token.FileSet) (ctxAssignState, []diag.Finding) {
 	state := cloneCtxAssignState(in)
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 
-	switch s := stmt.(type) {
+	switch stmtNode := stmt.(type) {
 	case *ast.BlockStmt:
-		return analyzeCTX03StmtList(s.List, state, info, fset)
+		return analyzeCTX03StmtList(stmtNode.List, state, info, fset)
 
 	case *ast.DeclStmt:
-		gd, ok := s.Decl.(*ast.GenDecl)
-		if !ok || gd.Tok != token.VAR {
-			return state, diagnostics
-		}
-		for _, spec := range gd.Specs {
-			vs, ok := spec.(*ast.ValueSpec)
-			if !ok {
-				continue
-			}
-			for i, name := range vs.Names {
-				if name == nil || name.Name == "_" {
-					continue
-				}
-				obj, ok := info.Defs[name].(*types.Var)
-				if !ok || !isStrictContextType(obj.Type()) {
-					continue
-				}
-				if i < len(vs.Values) {
-					state[obj] = !isNilExpr(vs.Values[i])
-				} else {
-					state[obj] = false
-				}
-			}
-		}
+		applyCTX03DeclState(state, stmtNode, info)
 		return state, diagnostics
 
 	case *ast.AssignStmt:
-		for i, lhs := range s.Lhs {
-			id, ok := lhs.(*ast.Ident)
-			if !ok {
-				continue
-			}
-			obj, ok := info.ObjectOf(id).(*types.Var)
-			if !ok || !isStrictContextType(obj.Type()) {
-				continue
-			}
-
-			if s.Tok == token.DEFINE {
-				if _, exists := state[obj]; !exists {
-					if i < len(s.Rhs) {
-						state[obj] = !isNilExpr(s.Rhs[i])
-					} else {
-						state[obj] = false
-					}
-				}
-				continue
-			}
-
-			if i < len(s.Rhs) {
-				state[obj] = !isNilExpr(s.Rhs[i])
-			}
-		}
+		applyCTX03AssignmentState(state, stmtNode, info)
 		return state, diagnostics
 
 	case *ast.ExprStmt:
-		if call, ok := s.X.(*ast.CallExpr); ok {
-			diagnostics = append(diagnostics, ctx03CallDiagnostics(call, state, info, fset)...)
-		}
-		return state, diagnostics
+		return state, append(diagnostics, ctx03ExprStmtDiagnostics(stmtNode, state, info, fset)...)
 
 	case *ast.GoStmt:
-		if s.Call != nil {
-			diagnostics = append(diagnostics, ctx03CallDiagnostics(s.Call, state, info, fset)...)
-		}
-		return state, diagnostics
+		return state, append(diagnostics, ctx03GoStmtDiagnostics(stmtNode, state, info, fset)...)
 
 	case *ast.DeferStmt:
-		if s.Call != nil {
-			diagnostics = append(diagnostics, ctx03CallDiagnostics(s.Call, state, info, fset)...)
-		}
-		return state, diagnostics
+		return state, append(diagnostics, ctx03DeferStmtDiagnostics(stmtNode, state, info, fset)...)
 
 	case *ast.IfStmt:
-		if s.Init != nil {
-			var initDiags []diag.Diagnostic
-			state, initDiags = analyzeCTX03Stmt(s.Init, state, info, fset)
-			diagnostics = append(diagnostics, initDiags...)
-		}
-
-		thenOut, thenDiags := analyzeCTX03StmtList(s.Body.List, cloneCtxAssignState(state), info, fset)
-		diagnostics = append(diagnostics, thenDiags...)
-
-		elseOut := cloneCtxAssignState(state)
-		if s.Else != nil {
-			var elseDiags []diag.Diagnostic
-			elseOut, elseDiags = analyzeCTX03Stmt(s.Else, elseOut, info, fset)
-			diagnostics = append(diagnostics, elseDiags...)
-		}
-
-		return intersectCtxAssignState(thenOut, elseOut), diagnostics
+		return analyzeCTX03IfStmt(stmtNode, state, diagnostics, info, fset)
+	default:
+		return state, diagnostics
 	}
-
-	return state, diagnostics
 }
 
-func ctx03CallDiagnostics(call *ast.CallExpr, state ctxAssignState, info *types.Info, fset *token.FileSet) []diag.Diagnostic {
+func applyCTX03DeclState(state ctxAssignState, stmt *ast.DeclStmt, info *types.Info) {
+	gd, ok := stmt.Decl.(*ast.GenDecl)
+	if !ok || gd.Tok != token.VAR {
+		return
+	}
+	for _, spec := range gd.Specs {
+		vs, ok := spec.(*ast.ValueSpec)
+		if !ok {
+			continue
+		}
+		for i, name := range vs.Names {
+			if name == nil || name.Name == "_" {
+				continue
+			}
+			obj, ok := info.Defs[name].(*types.Var)
+			if !ok || !isStrictContextType(obj.Type()) {
+				continue
+			}
+			if i < len(vs.Values) {
+				state[obj] = !isNilExpr(vs.Values[i])
+				continue
+			}
+			state[obj] = false
+		}
+	}
+}
+
+func ctx03ExprStmtDiagnostics(stmt *ast.ExprStmt, state ctxAssignState, info *types.Info, fset *token.FileSet) []diag.Finding {
+	call, ok := stmt.X.(*ast.CallExpr)
+	if !ok {
+		return nil
+	}
+	return ctx03CallDiagnostics(call, state, info, fset)
+}
+
+func ctx03GoStmtDiagnostics(stmt *ast.GoStmt, state ctxAssignState, info *types.Info, fset *token.FileSet) []diag.Finding {
+	if stmt.Call == nil {
+		return nil
+	}
+	return ctx03CallDiagnostics(stmt.Call, state, info, fset)
+}
+
+func ctx03DeferStmtDiagnostics(stmt *ast.DeferStmt, state ctxAssignState, info *types.Info, fset *token.FileSet) []diag.Finding {
+	if stmt.Call == nil {
+		return nil
+	}
+	return ctx03CallDiagnostics(stmt.Call, state, info, fset)
+}
+
+func applyCTX03AssignmentState(state ctxAssignState, assign *ast.AssignStmt, info *types.Info) {
+	for i, lhs := range assign.Lhs {
+		obj, ok := ctx03ContextVarForLHS(lhs, info)
+		if !ok {
+			continue
+		}
+
+		if assign.Tok == token.DEFINE {
+			applyCTX03DefineState(state, obj, i, assign.Rhs)
+			continue
+		}
+
+		if i < len(assign.Rhs) {
+			state[obj] = !isNilExpr(assign.Rhs[i])
+		}
+	}
+}
+
+func ctx03ContextVarForLHS(lhs ast.Expr, info *types.Info) (*types.Var, bool) {
+	id, ok := lhs.(*ast.Ident)
+	if !ok {
+		return nil, false
+	}
+	obj, ok := info.ObjectOf(id).(*types.Var)
+	if !ok || !isStrictContextType(obj.Type()) {
+		return nil, false
+	}
+	return obj, true
+}
+
+func applyCTX03DefineState(state ctxAssignState, obj *types.Var, index int, rhs []ast.Expr) {
+	if _, exists := state[obj]; exists {
+		return
+	}
+	if index < len(rhs) {
+		state[obj] = !isNilExpr(rhs[index])
+		return
+	}
+	state[obj] = false
+}
+
+func analyzeCTX03IfStmt(s *ast.IfStmt, state ctxAssignState, diagnostics []diag.Finding, info *types.Info, fset *token.FileSet) (ctxAssignState, []diag.Finding) {
+	if s.Init != nil {
+		var initDiags []diag.Finding
+		state, initDiags = analyzeCTX03Stmt(s.Init, state, info, fset)
+		diagnostics = append(diagnostics, initDiags...)
+	}
+
+	thenOut, thenDiags := analyzeCTX03StmtList(s.Body.List, cloneCtxAssignState(state), info, fset)
+	diagnostics = append(diagnostics, thenDiags...)
+
+	elseOut := cloneCtxAssignState(state)
+	if s.Else != nil {
+		var elseDiags []diag.Finding
+		elseOut, elseDiags = analyzeCTX03Stmt(s.Else, elseOut, info, fset)
+		diagnostics = append(diagnostics, elseDiags...)
+	}
+
+	return intersectCtxAssignState(thenOut, elseOut), diagnostics
+}
+
+func ctx03CallDiagnostics(call *ast.CallExpr, state ctxAssignState, info *types.Info, fset *token.FileSet) []diag.Finding {
 	if call == nil || info == nil {
 		return nil
 	}
 
 	sig, ok := info.TypeOf(call.Fun).(*types.Signature)
-	if !ok || sig.Params() == nil {
+	if !ok || sig == nil || sig.Params() == nil {
 		return nil
 	}
 
-	diags := make([]diag.Diagnostic, 0)
 	argCount := len(call.Args)
 	paramCount := sig.Params().Len()
 	limit := argCount
@@ -209,49 +254,51 @@ func ctx03CallDiagnostics(call *ast.CallExpr, state ctxAssignState, info *types.
 		limit = paramCount
 	}
 
+	diags := make([]diag.Finding, 0)
 	for i := 0; i < limit; i++ {
 		param := sig.Params().At(i)
 		if !isStrictContextType(param.Type()) {
 			continue
 		}
-
-		arg := call.Args[i]
-		if isNilExpr(arg) {
-			pos := fset.Position(arg.Pos())
-			diags = append(diags, diag.Diagnostic{
-				RuleID:   "CTX-03",
-				Severity: diag.SeverityError,
-				Message:  "nil must not be passed as context.Context",
-				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-				Hint:     "use context.Background() or context.TODO()",
-			})
-			continue
-		}
-
-		id, ok := arg.(*ast.Ident)
-		if !ok {
-			continue
-		}
-		obj, ok := info.ObjectOf(id).(*types.Var)
-		if !ok || !isStrictContextType(obj.Type()) {
-			continue
-		}
-		assigned, tracked := state[obj]
-		if !tracked || assigned {
-			continue
-		}
-
-		pos := fset.Position(id.Pos())
-		diags = append(diags, diag.Diagnostic{
-			RuleID:   "CTX-03",
-			Severity: diag.SeverityError,
-			Message:  "context.Context variable may be nil when passed to call",
-			Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-			Hint:     "ensure context is assigned (e.g., context.Background()) before passing",
-		})
+		diags = append(diags, ctx03DiagnosticForArg(call.Args[i], state, info, fset)...)
 	}
 
 	return diags
+}
+
+func ctx03DiagnosticForArg(arg ast.Expr, state ctxAssignState, info *types.Info, fset *token.FileSet) []diag.Finding {
+	if isNilExpr(arg) {
+		pos := fset.Position(arg.Pos())
+		return []diag.Finding{{
+			RuleID:   ruleCTX03,
+			Severity: diag.SeverityError,
+			Message:  "nil must not be passed as context.Context",
+			Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
+			Hint:     "use context.Background() or context.TODO()",
+		}}
+	}
+
+	id, ok := arg.(*ast.Ident)
+	if !ok {
+		return nil
+	}
+	obj, ok := info.ObjectOf(id).(*types.Var)
+	if !ok || !isStrictContextType(obj.Type()) {
+		return nil
+	}
+	assigned, tracked := state[obj]
+	if !tracked || assigned {
+		return nil
+	}
+
+	pos := fset.Position(id.Pos())
+	return []diag.Finding{{
+		RuleID:   ruleCTX03,
+		Severity: diag.SeverityError,
+		Message:  "context.Context variable may be nil when passed to call",
+		Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
+		Hint:     "ensure context is assigned (e.g., context.Background()) before passing",
+	}}
 }
 
 func isNilExpr(expr ast.Expr) bool {

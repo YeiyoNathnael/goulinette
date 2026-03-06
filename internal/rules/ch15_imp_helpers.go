@@ -8,6 +8,8 @@ import (
 
 type importClass int
 
+const modulePrefix = "module "
+
 const (
 	importClassStd importClass = iota
 	importClassThirdParty
@@ -24,10 +26,10 @@ func readModulePath(root string) string {
 	}
 	for _, line := range strings.Split(string(content), "\n") {
 		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "module ") {
+		if !strings.HasPrefix(line, modulePrefix) {
 			continue
 		}
-		return strings.TrimSpace(strings.TrimPrefix(line, "module "))
+		return strings.TrimSpace(strings.TrimPrefix(line, modulePrefix))
 	}
 	return ""
 }

@@ -9,16 +9,25 @@ import (
 
 type mag01Rule struct{}
 
+const (
+	mag01Chapter                = 18
+	mag01TestRepeatThreshold    = 3
+	mag01NonTestRepeatThreshold = 2
+)
+
+// NewMAG01 returns the MAG01 rule implementation.
 func NewMAG01() Rule {
 	return mag01Rule{}
 }
 
+// ID returns the rule identifier.
 func (mag01Rule) ID() string {
-	return "MAG-01"
+	return ruleMAG01
 }
 
+// Chapter returns the chapter number for this rule.
 func (mag01Rule) Chapter() int {
-	return 18
+	return mag01Chapter
 }
 
 var mag01ExemptNumbers = map[string]struct{}{
@@ -28,7 +37,8 @@ var mag01ExemptNumbers = map[string]struct{}{
 	"-1": {},
 }
 
-func (mag01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (mag01Rule) Run(ctx Context) ([]diag.Finding, error) {
 	units, err := collectMagAstUnits(ctx)
 	if err != nil {
 		return nil, err
@@ -68,10 +78,10 @@ func (mag01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 		})
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for literal, occs := range occByValue {
-		nonTestCount := 0
-		testCount := 0
+		var nonTestCount int
+		var testCount int
 		for _, occ := range occs {
 			if occ.isTest {
 				testCount++
@@ -82,17 +92,17 @@ func (mag01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 
 		for _, occ := range occs {
 			if occ.isTest {
-				if testCount < 3 {
+				if testCount < mag01TestRepeatThreshold {
 					continue
 				}
 			} else {
-				if nonTestCount < 2 {
+				if nonTestCount < mag01NonTestRepeatThreshold {
 					continue
 				}
 			}
 
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "MAG-01",
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ruleMAG01,
 				Severity: diag.SeverityError,
 				Message:  "numeric literal " + literal + " is repeated; extract to a named constant",
 				Pos:      diag.Position{File: occ.pos.Filename, Line: occ.pos.Line, Col: occ.pos.Column},

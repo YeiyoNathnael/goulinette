@@ -8,20 +8,30 @@ import (
 
 type tst03Rule struct{}
 
+const (
+	tst03Chapter      = 19
+	tst03SleepMessage = "time.Sleep in tests can create flaky synchronization"
+	tst03SleepHint    = "prefer channels, sync.WaitGroup, or context deadlines over sleep-based synchronization"
+)
+
+// NewTST03 returns the TST03 rule implementation.
 func NewTST03() Rule {
 	return tst03Rule{}
 }
 
+// ID returns the rule identifier.
 func (tst03Rule) ID() string {
-	return "TST-03"
+	return ruleTST03
 }
 
+// Chapter returns the chapter number for this rule.
 func (tst03Rule) Chapter() int {
-	return 19
+	return tst03Chapter
 }
 
-func (tst03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
-	diagnostics := make([]diag.Diagnostic, 0)
+// Run executes this rule against the provided context.
+func (tst03Rule) Run(ctx Context) ([]diag.Finding, error) {
+	diagnostics := make([]diag.Finding, 0)
 
 	if ctx.Root != "" {
 		pkgs, err := loadTypedPackagesWithTests(ctx.Root)
@@ -46,12 +56,12 @@ func (tst03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 						return true
 					}
 					pos := pkg.Fset.Position(call.Pos())
-					diagnostics = append(diagnostics, diag.Diagnostic{
-						RuleID:   "TST-03",
+					diagnostics = append(diagnostics, diag.Finding{
+						RuleID:   ruleTST03,
 						Severity: diag.SeverityError,
-						Message:  "time.Sleep in tests can create flaky synchronization",
+						Message:  tst03SleepMessage,
 						Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-						Hint:     "prefer channels, sync.WaitGroup, or context deadlines over sleep-based synchronization",
+						Hint:     tst03SleepHint,
 					})
 					return true
 				})
@@ -71,12 +81,12 @@ func (tst03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				return true
 			}
 			pos := tf.FSet.Position(call.Pos())
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "TST-03",
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ruleTST03,
 				Severity: diag.SeverityError,
-				Message:  "time.Sleep in tests can create flaky synchronization",
+				Message:  tst03SleepMessage,
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-				Hint:     "prefer channels, sync.WaitGroup, or context deadlines over sleep-based synchronization",
+				Hint:     tst03SleepHint,
 			})
 			return true
 		})

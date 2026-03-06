@@ -8,28 +8,44 @@ import (
 	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
+const (
+	ctxFileGoMod  = "go.mod"
+	ctxFileSample = "sample.go"
+	ctxFilePerm   = 0o644
+	ctxModule01   = "module example.com/ctx01\n\ngo 1.22\n"
+	ctxModule02   = "module example.com/ctx02\n\ngo 1.22\n"
+	ctxModule03   = "module example.com/ctx03\n\ngo 1.22\n"
+	ctxModule04   = "module example.com/ctx04\n\ngo 1.22\n"
+)
+
 func writeCTXFile(t *testing.T, dir, name, content string) string {
 	t.Helper()
 	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(content), ctxFilePerm); err != nil {
 		t.Fatalf("write %s: %v", name, err)
 	}
 	return path
 }
 
-func TestCTX01_ContextFirstParameter(t *testing.T) {
+// TestCTX01ContextFirstParameter documents this exported function.
+func TestCTX01ContextFirstParameter(t *testing.T) {
 	dir := t.TempDir()
-	writeCTXFile(t, dir, "go.mod", "module example.com/ctx01\n\ngo 1.22\n")
-	writeCTXFile(t, dir, "sample.go", `package sample
+	_ = writeCTXFile(t, dir, ctxFileGoMod, ctxModule01)
+	_ = writeCTXFile(t, dir, ctxFileSample, `package sample
 
 import ctxpkg "context"
 
+// S documents this exported type.
 type S struct{}
 
+// Bad documents this exported function.
 func Bad(a int, ctx ctxpkg.Context) {}
+// Good documents this exported function.
 func Good(ctx ctxpkg.Context, a int) {}
+// Method documents this exported method.
 func (s S) Method(a int, ctx ctxpkg.Context) {}
 
+// Runner documents this exported type.
 type Runner interface {
 	Run(a int, ctx ctxpkg.Context) error
 	Okay(ctx ctxpkg.Context) error
@@ -47,21 +63,25 @@ var _ = func(a int, ctx ctxpkg.Context) {}
 	}
 }
 
-func TestCTX02_ContextStoredInStruct(t *testing.T) {
+// TestCTX02ContextStoredInStruct documents this exported function.
+func TestCTX02ContextStoredInStruct(t *testing.T) {
 	dir := t.TempDir()
-	writeCTXFile(t, dir, "go.mod", "module example.com/ctx02\n\ngo 1.22\n")
-	writeCTXFile(t, dir, "sample.go", `package sample
+	_ = writeCTXFile(t, dir, ctxFileGoMod, ctxModule02)
+	_ = writeCTXFile(t, dir, ctxFileSample, `package sample
 
 import "context"
 
+// A documents this exported type.
 type A struct {
 	context.Context
 }
 
+// B documents this exported type.
 type B struct {
 	Ctx *context.Context
 }
 
+// C documents this exported type.
 type C struct {
 	Value int
 }
@@ -76,7 +96,8 @@ type C struct {
 	}
 }
 
-func TestCTX03_NilContextHeuristics(t *testing.T) {
+// TestCTX03NilContextHeuristics documents this exported function.
+func TestCTX03NilContextHeuristics(t *testing.T) {
 	tests := []struct {
 		name      string
 		source    string
@@ -135,9 +156,10 @@ func f(b bool) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			dir := t.TempDir()
-			writeCTXFile(t, dir, "go.mod", "module example.com/ctx03\n\ngo 1.22\n")
-			writeCTXFile(t, dir, "sample.go", tc.source)
+			_ = writeCTXFile(t, dir, ctxFileGoMod, ctxModule03)
+			_ = writeCTXFile(t, dir, ctxFileSample, tc.source)
 
 			diags, err := NewCTX03().Run(Context{Root: dir})
 			if err != nil {
@@ -153,7 +175,8 @@ func f(b bool) {
 	}
 }
 
-func TestCTX04_CancelMustBeHandled(t *testing.T) {
+// TestCTX04CancelMustBeHandled documents this exported function.
+func TestCTX04CancelMustBeHandled(t *testing.T) {
 	tests := []struct {
 		name      string
 		source    string
@@ -229,9 +252,10 @@ func f(parent context.Context, b bool) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			dir := t.TempDir()
-			writeCTXFile(t, dir, "go.mod", "module example.com/ctx04\n\ngo 1.22\n")
-			writeCTXFile(t, dir, "sample.go", tc.source)
+			_ = writeCTXFile(t, dir, ctxFileGoMod, ctxModule04)
+			_ = writeCTXFile(t, dir, ctxFileSample, tc.source)
 
 			diags, err := NewCTX04().Run(Context{Root: dir})
 			if err != nil {

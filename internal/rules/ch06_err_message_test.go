@@ -6,6 +6,12 @@ import (
 	"testing"
 )
 
+const (
+	errMessageTestFileName  = "x.go"
+	errMessageParseFailHint = "parse failed: %v"
+)
+
+// TestHasForbiddenErrorSuffix documents this exported function.
 func TestHasForbiddenErrorSuffix(t *testing.T) {
 	tests := []struct {
 		name string
@@ -20,6 +26,7 @@ func TestHasForbiddenErrorSuffix(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			if got := hasForbiddenErrorSuffix(tc.msg); got != tc.want {
 				t.Fatalf("hasForbiddenErrorSuffix(%q) = %v, want %v", tc.msg, got, tc.want)
 			}
@@ -27,6 +34,7 @@ func TestHasForbiddenErrorSuffix(t *testing.T) {
 	}
 }
 
+// TestCollectErrorMessageLiterals documents this exported function.
 func TestCollectErrorMessageLiterals(t *testing.T) {
 	src := `package p
 import (
@@ -40,9 +48,9 @@ func f() error {
 }`
 
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "x.go", src, parser.ParseComments)
+	file, err := parser.ParseFile(fset, errMessageTestFileName, src, parser.ParseComments)
 	if err != nil {
-		t.Fatalf("parse failed: %v", err)
+		t.Fatalf(errMessageParseFailHint, err)
 	}
 
 	items := collectErrorMessageLiterals(file)

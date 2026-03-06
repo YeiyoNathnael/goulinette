@@ -6,33 +6,49 @@ import (
 	"testing"
 )
 
+const (
+	cerTestFilePerms = 0o644
+	cerWriteErrFmt   = "write %s: %v"
+	cerGoModFile     = "go.mod"
+	cerSampleGoFile  = "sample.go"
+	cerAGoFile       = "a.go"
+)
+
 func writeModuleFileCER(t *testing.T, dir, name, content string) string {
 	t.Helper()
 
 	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatalf("write %s: %v", name, err)
+	if err := os.WriteFile(path, []byte(content), cerTestFilePerms); err != nil {
+		t.Fatalf(cerWriteErrFmt, name, err)
 	}
 	return path
 }
 
-func TestCER01_ReturnsErrorInterface(t *testing.T) {
+// TestCER01ReturnsErrorInterface documents this exported function.
+func TestCER01ReturnsErrorInterface(t *testing.T) {
 	dir := t.TempDir()
-	writeModuleFileCER(t, dir, "go.mod", "module example.com/cer01\n\ngo 1.22\n")
-	writeModuleFileCER(t, dir, "sample.go", `package sample
+	_ = writeModuleFileCER(t, dir, cerGoModFile, "module example.com/cer01\n\ngo 1.22\n")
+	_ = writeModuleFileCER(t, dir, cerSampleGoFile, `package sample
 
+// ValidationError documents this exported type.
 type ValidationError struct{}
 
+// Error documents this exported method.
 func (e *ValidationError) Error() string { return "bad" }
 
+// Bad documents this exported function.
 func Bad() *ValidationError { return nil }
 
+// ParseErr documents this exported type.
 type ParseErr struct{}
 
+// Error documents this exported method.
 func (e ParseErr) Error() string { return "parse" }
 
+// AlsoBad documents this exported function.
 func AlsoBad() ParseErr { return ParseErr{} }
 
+// Good documents this exported function.
 func Good() error { return nil }
 `)
 
@@ -45,20 +61,23 @@ func Good() error { return nil }
 	}
 }
 
-func TestCER02_ConcreteErrorVarDeclarations(t *testing.T) {
+// TestCER02ConcreteErrorVarDeclarations documents this exported function.
+func TestCER02ConcreteErrorVarDeclarations(t *testing.T) {
 	dir := t.TempDir()
-	writeModuleFileCER(t, dir, "go.mod", "module example.com/cer02\n\ngo 1.22\n")
-	writeModuleFileCER(t, dir, "a.go", `package sample
+	_ = writeModuleFileCER(t, dir, cerGoModFile, "module example.com/cer02\n\ngo 1.22\n")
+	_ = writeModuleFileCER(t, dir, cerAGoFile, `package sample
 
 func f() {
 	var err *LaterError
 	_ = err
 }
 `)
-	writeModuleFileCER(t, dir, "b.go", `package sample
+	_ = writeModuleFileCER(t, dir, "b.go", `package sample
 
+// LaterError documents this exported type.
 type LaterError struct{}
 
+// Error documents this exported method.
 func (e *LaterError) Error() string { return "later" }
 `)
 
@@ -71,7 +90,8 @@ func (e *LaterError) Error() string { return "later" }
 	}
 }
 
-func TestCER03_UnassignedConcreteErrorReturn(t *testing.T) {
+// TestCER03UnassignedConcreteErrorReturn documents this exported function.
+func TestCER03UnassignedConcreteErrorReturn(t *testing.T) {
 	tests := []struct {
 		name      string
 		source    string
@@ -80,7 +100,9 @@ func TestCER03_UnassignedConcreteErrorReturn(t *testing.T) {
 		{
 			name: "conditional assignment warns",
 			source: `package sample
+// ValidationError documents this exported type.
 type ValidationError struct{}
+// Error documents this exported method.
 func (e *ValidationError) Error() string { return "bad" }
 func f(bad bool) error {
 	var err *ValidationError
@@ -95,7 +117,9 @@ func f(bad bool) error {
 		{
 			name: "all-path assignment passes",
 			source: `package sample
+// ValidationError documents this exported type.
 type ValidationError struct{}
+// Error documents this exported method.
 func (e *ValidationError) Error() string { return "bad" }
 func f(bad bool) error {
 	var err *ValidationError
@@ -112,7 +136,9 @@ func f(bad bool) error {
 		{
 			name: "immediate assignment passes",
 			source: `package sample
+// ValidationError documents this exported type.
 type ValidationError struct{}
+// Error documents this exported method.
 func (e *ValidationError) Error() string { return "bad" }
 func f() error {
 	var err *ValidationError
@@ -126,9 +152,10 @@ func f() error {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			dir := t.TempDir()
-			writeModuleFileCER(t, dir, "go.mod", "module example.com/cer03\n\ngo 1.22\n")
-			writeModuleFileCER(t, dir, "sample.go", tc.source)
+			_ = writeModuleFileCER(t, dir, cerGoModFile, "module example.com/cer03\n\ngo 1.22\n")
+			_ = writeModuleFileCER(t, dir, cerSampleGoFile, tc.source)
 
 			diags, err := NewCER03().Run(Context{Root: dir})
 			if err != nil {

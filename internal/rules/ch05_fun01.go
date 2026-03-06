@@ -8,25 +8,31 @@ import (
 
 type fun01Rule struct{}
 
+const fun01Chapter = 5
+
+// NewFUN01 returns the FUN01 rule implementation.
 func NewFUN01() Rule {
 	return fun01Rule{}
 }
 
+// ID returns the rule identifier.
 func (fun01Rule) ID() string {
-	return "FUN-01"
+	return ruleFUN01
 }
 
+// Chapter returns the chapter number for this rule.
 func (fun01Rule) Chapter() int {
-	return 5
+	return fun01Chapter
 }
 
-func (fun01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (fun01Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		for _, decl := range pf.File.Decls {
 			fn, ok := decl.(*ast.FuncDecl)
@@ -41,8 +47,8 @@ func (fun01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				}
 
 				pos := pf.FSet.Position(ret.Return)
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "FUN-01",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleFUN01,
 					Severity: diag.SeverityError,
 					Message:  "naked return is forbidden",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

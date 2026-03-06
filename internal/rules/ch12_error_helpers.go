@@ -5,8 +5,10 @@ import (
 	"go/types"
 )
 
+const errorTypeName = "error"
+
 func builtinErrorType() types.Type {
-	obj := types.Universe.Lookup("error")
+	obj := types.Universe.Lookup(errorTypeName)
 	if obj == nil {
 		return nil
 	}
@@ -64,7 +66,7 @@ func functionResultFieldByIndex(fn *ast.FuncDecl, index int) *ast.Field {
 		return nil
 	}
 
-	count := 0
+	var count int
 	for _, field := range fn.Type.Results.List {
 		n := len(field.Names)
 		if n == 0 {

@@ -4,29 +4,39 @@ import "github.com/YeiyoNathnael/goulinette/internal/diag"
 
 type err08Rule struct{}
 
+const (
+	err08Chapter     = 6
+	err08PanicFnName = "panic"
+	err08RecoverName = "recover"
+)
+
+// NewERR08 returns the ERR08 rule implementation.
 func NewERR08() Rule {
 	return err08Rule{}
 }
 
+// ID returns the rule identifier.
 func (err08Rule) ID() string {
-	return "ERR-08"
+	return ruleERR08
 }
 
+// Chapter returns the chapter number for this rule.
 func (err08Rule) Chapter() int {
-	return 6
+	return err08Chapter
 }
 
-func (err08Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (err08Rule) Run(ctx Context) ([]diag.Finding, error) {
 	pkgs, err := loadTypedPackages(ctx.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pkg := range pkgs {
 		for _, syntaxFile := range pkg.Syntax {
-			panicCalls := collectCalls(syntaxFile, "panic")
-			recoverCalls := collectCalls(syntaxFile, "recover")
+			panicCalls := collectCalls(syntaxFile, err08PanicFnName)
+			recoverCalls := collectCalls(syntaxFile, err08RecoverName)
 			if len(panicCalls) == 0 || len(recoverCalls) == 0 {
 				continue
 			}
@@ -50,8 +60,8 @@ func (err08Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				}
 
 				pos := pkg.Fset.Position(pc.call.Lparen)
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "ERR-08",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleERR08,
 					Severity: diag.SeverityError,
 					Message:  "panic/recover must not be used as general control flow",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

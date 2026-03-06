@@ -9,25 +9,38 @@ import (
 
 type typ07Rule struct{}
 
+const (
+	typ07Chapter           = 7
+	typ07AnyTypeName       = "any"
+	typ07JSONKeyword       = "json"
+	typ07HintJustification = "add inline or preceding comment explaining why any is required"
+)
+
+var typ07JustificationKeywords = []string{"because", "justif", "dynamic", "unknown", "generic", typ07JSONKeyword, "reflection", "unmarshal", "arbitrary", "external", "interop"}
+
+// NewTYP07 returns the TYP07 rule implementation.
 func NewTYP07() Rule {
 	return typ07Rule{}
 }
 
+// ID returns the rule identifier.
 func (typ07Rule) ID() string {
-	return "TYP-07"
+	return ruleTYP07
 }
 
+// Chapter returns the chapter number for this rule.
 func (typ07Rule) Chapter() int {
-	return 7
+	return typ07Chapter
 }
 
-func (typ07Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (typ07Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		for _, decl := range pf.File.Decls {
 			switch d := decl.(type) {
@@ -35,6 +48,8 @@ func (typ07Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				diagnostics = append(diagnostics, checkAnyInFuncSignature(pf, d)...)
 			case *ast.GenDecl:
 				diagnostics = append(diagnostics, checkAnyInStructFields(pf, d)...)
+			default:
+				// no-op
 			}
 		}
 	}
@@ -42,8 +57,8 @@ func (typ07Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 	return diagnostics, nil
 }
 
-func checkAnyInFuncSignature(pf parsedFile, fn *ast.FuncDecl) []diag.Diagnostic {
-	out := make([]diag.Diagnostic, 0)
+func checkAnyInFuncSignature(pf parsedFile, fn *ast.FuncDecl) []diag.Finding {
+	out := make([]diag.Finding, 0)
 	if fn == nil || fn.Type == nil {
 		return out
 	}
@@ -62,12 +77,12 @@ func checkAnyInFuncSignature(pf parsedFile, fn *ast.FuncDecl) []diag.Diagnostic 
 			}
 
 			pos := pf.FSet.Position(field.Pos())
-			out = append(out, diag.Diagnostic{
-				RuleID:   "TYP-07",
+			out = append(out, diag.Finding{
+				RuleID:   ruleTYP07,
 				Severity: diag.SeverityWarning,
 				Message:  "any usage in function signature requires justification comment",
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-				Hint:     "add inline or preceding comment explaining why any is required",
+				Hint:     typ07HintJustification,
 			})
 		}
 	}
@@ -75,8 +90,8 @@ func checkAnyInFuncSignature(pf parsedFile, fn *ast.FuncDecl) []diag.Diagnostic 
 	return out
 }
 
-func checkAnyInStructFields(pf parsedFile, gd *ast.GenDecl) []diag.Diagnostic {
-	out := make([]diag.Diagnostic, 0)
+func checkAnyInStructFields(pf parsedFile, gd *ast.GenDecl) []diag.Finding {
+	out := make([]diag.Finding, 0)
 	for _, spec := range gd.Specs {
 		ts, ok := spec.(*ast.TypeSpec)
 		if !ok {
@@ -96,12 +111,12 @@ func checkAnyInStructFields(pf parsedFile, gd *ast.GenDecl) []diag.Diagnostic {
 			}
 
 			pos := pf.FSet.Position(field.Pos())
-			out = append(out, diag.Diagnostic{
-				RuleID:   "TYP-07",
+			out = append(out, diag.Finding{
+				RuleID:   ruleTYP07,
 				Severity: diag.SeverityWarning,
 				Message:  "any usage in struct fields requires justification comment",
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-				Hint:     "add inline or preceding comment explaining why any is required",
+				Hint:     typ07HintJustification,
 			})
 		}
 	}
@@ -113,10 +128,10 @@ func containsAnyType(expr ast.Expr) bool {
 		return false
 	}
 
-	found := false
+	var found bool
 	ast.Inspect(expr, func(n ast.Node) bool {
 		id, ok := n.(*ast.Ident)
-		if ok && id.Name == "any" {
+		if ok && id.Name == typ07AnyTypeName {
 			found = true
 			return false
 		}
@@ -134,7 +149,7 @@ func hasAnyJustification(groups ...*ast.CommentGroup) bool {
 		if text == "" {
 			continue
 		}
-		for _, kw := range []string{"because", "justif", "dynamic", "unknown", "generic", "json", "reflection", "unmarshal", "arbitrary", "external", "interop"} {
+		for _, kw := range typ07JustificationKeywords {
 			if strings.Contains(text, kw) {
 				return true
 			}

@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// TestShouldWarnInterfaceReturnTyped documents this exported function.
 func TestShouldWarnInterfaceReturnTyped(t *testing.T) {
 	iface := types.NewInterfaceType(nil, nil)
 	iface.Complete()

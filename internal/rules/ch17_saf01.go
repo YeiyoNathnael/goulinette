@@ -9,25 +9,31 @@ import (
 
 type saf01Rule struct{}
 
+const saf01Chapter = 17
+
+// NewSAF01 returns the SAF01 rule implementation.
 func NewSAF01() Rule {
 	return saf01Rule{}
 }
 
+// ID returns the rule identifier.
 func (saf01Rule) ID() string {
-	return "SAF-01"
+	return ruleSAF01
 }
 
+// Chapter returns the chapter number for this rule.
 func (saf01Rule) Chapter() int {
-	return 17
+	return saf01Chapter
 }
 
-func (saf01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (saf01Rule) Run(ctx Context) ([]diag.Finding, error) {
 	pkgs, err := loadTypedPackages(ctx.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pkg := range pkgs {
 		if pkg == nil || pkg.TypesInfo == nil {
 			continue
@@ -64,8 +70,8 @@ func (saf01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 					name = fn.Name.Name
 				}
 				pos := pkg.Fset.Position(fn.Pos())
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "SAF-01",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleSAF01,
 					Severity: diag.SeverityError,
 					Message:  "method " + name + " on copy-sensitive type must use pointer receiver",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

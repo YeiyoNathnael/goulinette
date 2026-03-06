@@ -10,19 +10,30 @@ import (
 
 type str01Rule struct{}
 
+const (
+	str01Chapter             = 8
+	str01ReceiverMaxLen      = 3
+	str01MessageConsistency  = "receiver names must be consistent across all methods of the same type"
+	str01MessageAbbreviation = "receiver name must be a short abbreviation of the type name"
+)
+
+// NewSTR01 returns the STR01 rule implementation.
 func NewSTR01() Rule {
 	return str01Rule{}
 }
 
+// ID returns the rule identifier.
 func (str01Rule) ID() string {
-	return "STR-01"
+	return ruleSTR01
 }
 
+// Chapter returns the chapter number for this rule.
 func (str01Rule) Chapter() int {
-	return 8
+	return str01Chapter
 }
 
-func (str01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (str01Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
@@ -66,40 +77,40 @@ func (str01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 		}
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for typeName, methods := range byType {
 		names := map[string]int{}
-		for _, m := range methods {
-			count, ok := names[m.receiverName]
+		for _, method := range methods {
+			count, ok := names[method.receiverName]
 			if !ok {
-				names[m.receiverName] = 1
+				names[method.receiverName] = 1
 				continue
 			}
-			names[m.receiverName] = count + 1
+			names[method.receiverName] = count + 1
 		}
 		inconsistent := len(names) > 1
 
-		for _, m := range methods {
+		for _, method := range methods {
 			if inconsistent {
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "STR-01",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleSTR01,
 					Severity: diag.SeverityError,
-					Message:  "receiver names must be consistent across all methods of the same type",
-					Pos:      diag.Position{File: m.filePath, Line: m.line, Col: m.col},
+					Message:  str01MessageConsistency,
+					Pos:      diag.Position{File: method.filePath, Line: method.line, Col: method.col},
 					Hint:     "use one consistent abbreviation for type " + typeName,
 				})
 				continue
 			}
 
-			if isShortReceiverAbbreviation(m.receiverName, typeName) {
+			if isShortReceiverAbbreviation(method.receiverName, typeName) {
 				continue
 			}
 
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "STR-01",
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ruleSTR01,
 				Severity: diag.SeverityError,
-				Message:  "receiver name must be a short abbreviation of the type name",
-				Pos:      diag.Position{File: m.filePath, Line: m.line, Col: m.col},
+				Message:  str01MessageAbbreviation,
+				Pos:      diag.Position{File: method.filePath, Line: method.line, Col: method.col},
 				Hint:     "use receiver like " + expectedReceiverSuggestion(typeName),
 			})
 		}
@@ -124,7 +135,7 @@ func receiverBaseTypeName(expr ast.Expr) string {
 }
 
 func isShortReceiverAbbreviation(name, typeName string) bool {
-	if name == "" || typeName == "" || len(name) > 3 {
+	if name == "" || typeName == "" || len(name) > str01ReceiverMaxLen {
 		return false
 	}
 	if strings.ToLower(name) != name {
@@ -156,7 +167,7 @@ func typeInitials(typeName string) string {
 		}
 	}
 	if len(out) > 3 {
-		out = out[:3]
+		out = out[:str01ReceiverMaxLen]
 	}
 	return string(out)
 }

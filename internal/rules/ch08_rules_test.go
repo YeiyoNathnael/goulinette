@@ -6,16 +6,29 @@ import (
 	"testing"
 )
 
+const (
+	strFileSampleGo = "sample.go"
+	strFileGoMod    = "go.mod"
+	strWriteErrFmt  = "write sample file: %v"
+	strFilePerm     = 0o644
+	strModule03     = "module example.com/str03\n\ngo 1.22\n"
+	strModule04     = "module example.com/str04\n\ngo 1.22\n"
+)
+
+// TestSTR01ConsistencyAcrossMethods documents this exported function.
 func TestSTR01ConsistencyAcrossMethods(t *testing.T) {
 	dir := t.TempDir()
-	file := filepath.Join(dir, "sample.go")
+	file := filepath.Join(dir, strFileSampleGo)
 	content := `package sample
+// Client documents this exported type.
 type Client struct{}
+// Do documents this exported method.
 func (c Client) Do() {}
+// Reset documents this exported method.
 func (cl Client) Reset() {}
 `
-	if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
-		t.Fatalf("write sample file: %v", err)
+	if err := os.WriteFile(file, []byte(content), strFilePerm); err != nil {
+		t.Fatalf(strWriteErrFmt, err)
 	}
 
 	diags, err := NewSTR01().Run(Context{Files: []string{file}})
@@ -27,15 +40,18 @@ func (cl Client) Reset() {}
 	}
 }
 
+// TestSTR02ForbiddenReceiverNames documents this exported function.
 func TestSTR02ForbiddenReceiverNames(t *testing.T) {
 	dir := t.TempDir()
-	file := filepath.Join(dir, "sample.go")
+	file := filepath.Join(dir, strFileSampleGo)
 	content := `package sample
+// Client documents this exported type.
 type Client struct{}
+// Do documents this exported method.
 func (self *Client) Do() {}
 `
-	if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
-		t.Fatalf("write sample file: %v", err)
+	if err := os.WriteFile(file, []byte(content), strFilePerm); err != nil {
+		t.Fatalf(strWriteErrFmt, err)
 	}
 
 	diags, err := NewSTR02().Run(Context{Files: []string{file}})
@@ -47,19 +63,24 @@ func (self *Client) Do() {}
 	}
 }
 
+// TestSTR03InterfaceException documents this exported function.
 func TestSTR03InterfaceException(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/str03\n\ngo 1.22\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, strFileGoMod), []byte(strModule03), strFilePerm); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 	content := `package sample
+// Getter documents this exported type.
 type Getter interface { Get() int }
+// Client documents this exported type.
 type Client struct{}
+// Get documents this exported method.
 func (c Client) Get() int { return 0 }
+// Set documents this exported method.
 func (c Client) Set(v int) {}
 `
-	if err := os.WriteFile(filepath.Join(dir, "sample.go"), []byte(content), 0o644); err != nil {
-		t.Fatalf("write sample file: %v", err)
+	if err := os.WriteFile(filepath.Join(dir, strFileSampleGo), []byte(content), strFilePerm); err != nil {
+		t.Fatalf(strWriteErrFmt, err)
 	}
 
 	diags, err := NewSTR03().Run(Context{Root: dir})
@@ -71,18 +92,20 @@ func (c Client) Set(v int) {}
 	}
 }
 
+// TestSTR04SkipsGeneratedFiles documents this exported function.
 func TestSTR04SkipsGeneratedFiles(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/str04\n\ngo 1.22\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, strFileGoMod), []byte(strModule04), strFilePerm); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 
 	mainFile := `package sample
+// Point documents this exported type.
 type Point struct{ X, Y int }
 var _ = Point{1, 2}
 `
-	if err := os.WriteFile(filepath.Join(dir, "sample.go"), []byte(mainFile), 0o644); err != nil {
-		t.Fatalf("write sample file: %v", err)
+	if err := os.WriteFile(filepath.Join(dir, strFileSampleGo), []byte(mainFile), strFilePerm); err != nil {
+		t.Fatalf(strWriteErrFmt, err)
 	}
 
 	genFile := `package sample
@@ -90,7 +113,7 @@ var _ = Point{1, 2}
 type Generated struct{ A, B int }
 var _ = Generated{1, 2}
 `
-	if err := os.WriteFile(filepath.Join(dir, "sample.pb.go"), []byte(genFile), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "sample.pb.go"), []byte(genFile), strFilePerm); err != nil {
 		t.Fatalf("write generated file: %v", err)
 	}
 

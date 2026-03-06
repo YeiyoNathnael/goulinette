@@ -9,25 +9,31 @@ import (
 
 type err01Rule struct{}
 
+const err01Chapter = 6
+
+// NewERR01 returns the ERR01 rule implementation.
 func NewERR01() Rule {
 	return err01Rule{}
 }
 
+// ID returns the rule identifier.
 func (err01Rule) ID() string {
-	return "ERR-01"
+	return ruleERR01
 }
 
+// Chapter returns the chapter number for this rule.
 func (err01Rule) Chapter() int {
-	return 6
+	return err01Chapter
 }
 
-func (err01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (err01Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		for _, item := range collectErrorMessageLiterals(pf.File) {
 			trimmed := strings.TrimSpace(item.text)
@@ -40,8 +46,8 @@ func (err01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 			}
 
 			pos := pf.FSet.Position(item.call.Lparen)
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "ERR-01",
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ruleERR01,
 				Severity: diag.SeverityError,
 				Message:  "error message must not start with a capital letter",
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

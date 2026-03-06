@@ -8,25 +8,31 @@ import (
 
 type imp02Rule struct{}
 
+const imp02Chapter = 15
+
+// NewIMP02 returns the IMP02 rule implementation.
 func NewIMP02() Rule {
 	return imp02Rule{}
 }
 
+// ID returns the rule identifier.
 func (imp02Rule) ID() string {
-	return "IMP-02"
+	return ruleIMP02
 }
 
+// Chapter returns the chapter number for this rule.
 func (imp02Rule) Chapter() int {
-	return 15
+	return imp02Chapter
 }
 
-func (imp02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (imp02Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		usedSelectors := make(map[string]bool)
 		ast.Inspect(pf.File, func(n ast.Node) bool {
@@ -43,7 +49,7 @@ func (imp02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 		})
 
 		for _, imp := range pf.File.Imports {
-			name := ""
+			var name string
 			if imp.Name != nil {
 				name = imp.Name.Name
 			}
@@ -62,8 +68,8 @@ func (imp02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 			}
 
 			pos := pf.FSet.Position(imp.Path.Pos())
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "IMP-02",
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ruleIMP02,
 				Severity: diag.SeverityError,
 				Message:  "unused import is forbidden",
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

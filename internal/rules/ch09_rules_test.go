@@ -6,16 +6,24 @@ import (
 	"testing"
 )
 
+const (
+	docTestFilePerms = 0o644
+	docWriteErrFmt   = "write %s: %v"
+	docSampleGoFile  = "sample.go"
+	docExpectedFmt   = "expected %d diagnostics, got %d"
+)
+
 func writeGoFile(t *testing.T, dir, name, content string) string {
 	t.Helper()
 
 	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatalf("write %s: %v", name, err)
+	if err := os.WriteFile(path, []byte(content), docTestFilePerms); err != nil {
+		t.Fatalf(docWriteErrFmt, name, err)
 	}
 	return path
 }
 
+// TestDOC01ToDOC04 documents this exported function.
 func TestDOC01ToDOC04(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -38,6 +46,7 @@ func Exported() {}
 			ruleFactory: NewDOC02,
 			source: `package sample
 /* Exported does work. */
+// Exported documents this exported function.
 func Exported() {}
 `,
 			wantCount: 1,
@@ -72,20 +81,22 @@ func Exported() {}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			dir := t.TempDir()
-			file := writeGoFile(t, dir, "sample.go", tc.source)
+			file := writeGoFile(t, dir, docSampleGoFile, tc.source)
 
 			diags, err := tc.ruleFactory().Run(Context{Files: []string{file}})
 			if err != nil {
 				t.Fatalf("run %s: %v", tc.ruleFactory().ID(), err)
 			}
 			if len(diags) != tc.wantCount {
-				t.Fatalf("expected %d diagnostics, got %d", tc.wantCount, len(diags))
+				t.Fatalf(docExpectedFmt, tc.wantCount, len(diags))
 			}
 		})
 	}
 }
 
+// TestDOC05InitRestrictions documents this exported function.
 func TestDOC05InitRestrictions(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -117,15 +128,16 @@ func init() {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			dir := t.TempDir()
-			file := writeGoFile(t, dir, "sample.go", tc.source)
+			file := writeGoFile(t, dir, docSampleGoFile, tc.source)
 
 			diags, err := NewDOC05().Run(Context{Files: []string{file}})
 			if err != nil {
 				t.Fatalf("run DOC-05: %v", err)
 			}
 			if len(diags) != tc.wantCount {
-				t.Fatalf("expected %d diagnostics, got %d", tc.wantCount, len(diags))
+				t.Fatalf(docExpectedFmt, tc.wantCount, len(diags))
 			}
 		})
 	}

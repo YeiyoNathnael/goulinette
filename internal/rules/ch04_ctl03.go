@@ -9,25 +9,31 @@ import (
 
 type ctl03Rule struct{}
 
+const ctl03Chapter = 4
+
+// NewCTL03 returns the CTL03 rule implementation.
 func NewCTL03() Rule {
 	return ctl03Rule{}
 }
 
+// ID returns the rule identifier.
 func (ctl03Rule) ID() string {
-	return "CTL-03"
+	return ruleCTL03
 }
 
+// Chapter returns the chapter number for this rule.
 func (ctl03Rule) Chapter() int {
-	return 4
+	return ctl03Chapter
 }
 
-func (ctl03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (ctl03Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		ast.Inspect(pf.File, func(n ast.Node) bool {
 			branch, ok := n.(*ast.BranchStmt)
@@ -36,8 +42,8 @@ func (ctl03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 			}
 
 			pos := pf.FSet.Position(branch.Pos())
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "CTL-03",
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ruleCTL03,
 				Severity: diag.SeverityError,
 				Message:  "goto is forbidden",
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

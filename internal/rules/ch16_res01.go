@@ -10,16 +10,28 @@ import (
 
 type res01Rule struct{}
 
+const (
+	res01Chapter            = 16
+	res01BodyFieldName      = "Body"
+	res01CloseMethodName    = "Close"
+	res01HintCheckErrFirst  = "check err first, then defer close"
+	res01HintDeferAfterOpen = "place defer <resource>.Close() immediately after successful acquisition"
+	res01HintAddDefer       = "add defer <resource>.Close() immediately after acquisition"
+)
+
+// NewRES01 returns the RES01 rule implementation.
 func NewRES01() Rule {
 	return res01Rule{}
 }
 
+// ID returns the rule identifier.
 func (res01Rule) ID() string {
-	return "RES-01"
+	return ruleRES01
 }
 
+// Chapter returns the chapter number for this rule.
 func (res01Rule) Chapter() int {
-	return 16
+	return res01Chapter
 }
 
 type resourceKey struct {
@@ -37,13 +49,14 @@ type trackedResource struct {
 	reported     bool
 }
 
-func (res01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (res01Rule) Run(ctx Context) ([]diag.Finding, error) {
 	pkgs, err := loadTypedPackages(ctx.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pkg := range pkgs {
 		for _, file := range pkg.Syntax {
 			for _, decl := range file.Decls {
@@ -68,59 +81,19 @@ func (res01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 	return diagnostics, nil
 }
 
-func analyzeRES01Block(body *ast.BlockStmt, info *types.Info, fset *token.FileSet) []diag.Diagnostic {
+func analyzeRES01Block(body *ast.BlockStmt, info *types.Info, fset *token.FileSet) []diag.Finding {
 	if body == nil {
 		return nil
 	}
 
 	tracked := make(map[resourceKey]*trackedResource)
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 
 	for idx, stmt := range body.List {
-		for _, rs := range collectAcquiredResources(stmt, idx, info) {
-			tracked[rs.key] = rs
-		}
-
+		res01TrackAcquiredResources(tracked, stmt, idx, info)
 		markDeferredResources(stmt, tracked, info)
-
-		for _, rs := range tracked {
-			if rs.errVar == nil || rs.reported {
-				continue
-			}
-			if isErrCheckReturnStmt(stmt, rs.errVar, info) {
-				if rs.deferredPos != token.NoPos && rs.deferredPos < stmt.Pos() {
-					pos := fset.Position(rs.deferredPos)
-					diagnostics = append(diagnostics, diag.Diagnostic{
-						RuleID:   "RES-01",
-						Severity: diag.SeverityError,
-						Message:  "defer close must appear after acquisition error check",
-						Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-						Hint:     "check err first, then defer close",
-					})
-					rs.reported = true
-				}
-			}
-		}
-
-		if stmtHasReturnExcludingFuncLit(stmt) {
-			for _, rs := range tracked {
-				if rs.deferred || rs.reported {
-					continue
-				}
-				if isErrCheckReturnStmt(stmt, rs.errVar, info) {
-					continue
-				}
-				pos := fset.Position(rs.createdPos)
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "RES-01",
-					Severity: diag.SeverityError,
-					Message:  "closeable resource must be closed with defer before early return",
-					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-					Hint:     "place defer <resource>.Close() immediately after successful acquisition",
-				})
-				rs.reported = true
-			}
-		}
+		diagnostics = append(diagnostics, res01ErrCheckOrderDiagnostics(stmt, tracked, info, fset)...)
+		diagnostics = append(diagnostics, res01EarlyReturnDiagnostics(stmt, tracked, info, fset)...)
 	}
 
 	for _, rs := range tracked {
@@ -128,15 +101,72 @@ func analyzeRES01Block(body *ast.BlockStmt, info *types.Info, fset *token.FileSe
 			continue
 		}
 		pos := fset.Position(rs.createdPos)
-		diagnostics = append(diagnostics, diag.Diagnostic{
-			RuleID:   "RES-01",
+		diagnostics = append(diagnostics, diag.Finding{
+			RuleID:   ruleRES01,
 			Severity: diag.SeverityError,
 			Message:  "closeable resource must be closed with defer",
 			Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-			Hint:     "add defer <resource>.Close() immediately after acquisition",
+			Hint:     res01HintAddDefer,
 		})
 	}
 
+	return diagnostics
+}
+
+func res01TrackAcquiredResources(tracked map[resourceKey]*trackedResource, stmt ast.Stmt, index int, info *types.Info) {
+	for _, rs := range collectAcquiredResources(stmt, index, info) {
+		tracked[rs.key] = rs
+	}
+}
+
+func res01ErrCheckOrderDiagnostics(stmt ast.Stmt, tracked map[resourceKey]*trackedResource, info *types.Info, fset *token.FileSet) []diag.Finding {
+	diagnostics := make([]diag.Finding, 0)
+	for _, rs := range tracked {
+		if rs.errVar == nil || rs.reported {
+			continue
+		}
+		if !isErrCheckReturnStmt(stmt, rs.errVar, info) {
+			continue
+		}
+		if rs.deferredPos == token.NoPos || rs.deferredPos >= stmt.Pos() {
+			continue
+		}
+		pos := fset.Position(rs.deferredPos)
+		diagnostics = append(diagnostics, diag.Finding{
+			RuleID:   ruleRES01,
+			Severity: diag.SeverityError,
+			Message:  "defer close must appear after acquisition error check",
+			Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
+			Hint:     res01HintCheckErrFirst,
+		})
+		rs.reported = true
+	}
+	return diagnostics
+}
+
+func res01EarlyReturnDiagnostics(stmt ast.Stmt, tracked map[resourceKey]*trackedResource, info *types.Info, fset *token.FileSet) []diag.Finding {
+	if !stmtHasReturnExcludingFuncLit(stmt) {
+		return nil
+	}
+
+	diagnostics := make([]diag.Finding, 0)
+	for _, rs := range tracked {
+		if rs.deferred || rs.reported {
+			continue
+		}
+		if isErrCheckReturnStmt(stmt, rs.errVar, info) {
+			continue
+		}
+		pos := fset.Position(rs.createdPos)
+		diagnostics = append(diagnostics, diag.Finding{
+			RuleID:   ruleRES01,
+			Severity: diag.SeverityError,
+			Message:  "closeable resource must be closed with defer before early return",
+			Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
+			Hint:     res01HintDeferAfterOpen,
+		})
+		rs.reported = true
+	}
 	return diagnostics
 }
 
@@ -176,7 +206,7 @@ func collectAcquiredResources(stmt ast.Stmt, index int, info *types.Info) []*tra
 				}
 				if hasCloserBodyField(resType) {
 					out = append(out, &trackedResource{
-						key:          resourceKey{obj: obj, field: "Body"},
+						key:          resourceKey{obj: obj, field: res01BodyFieldName},
 						errVar:       errVar,
 						createdPos:   id.Pos(),
 						createdIndex: index,
@@ -206,6 +236,8 @@ func collectAcquiredResources(stmt ast.Stmt, index int, info *types.Info) []*tra
 			}
 			collectFromAssignment(lhs, vs.Values, token.DEFINE)
 		}
+	default:
+		// no-op
 	}
 
 	return out
@@ -249,7 +281,7 @@ func markDeferredResources(stmt ast.Stmt, tracked map[resourceKey]*trackedResour
 
 	call := ds.Call
 	sel, ok := call.Fun.(*ast.SelectorExpr)
-	if ok && sel.Sel != nil && sel.Sel.Name == "Close" {
+	if ok && sel.Sel != nil && sel.Sel.Name == res01CloseMethodName {
 		switch x := sel.X.(type) {
 		case *ast.Ident:
 			obj, _ := info.ObjectOf(x).(*types.Var)
@@ -262,7 +294,7 @@ func markDeferredResources(stmt ast.Stmt, tracked map[resourceKey]*trackedResour
 			}
 
 		case *ast.SelectorExpr:
-			if x.Sel == nil || x.Sel.Name != "Body" {
+			if x.Sel == nil || x.Sel.Name != res01BodyFieldName {
 				break
 			}
 			id, ok := x.X.(*ast.Ident)
@@ -273,10 +305,12 @@ func markDeferredResources(stmt ast.Stmt, tracked map[resourceKey]*trackedResour
 			if obj == nil {
 				break
 			}
-			if rs, ok := tracked[resourceKey{obj: obj, field: "Body"}]; ok {
+			if rs, ok := tracked[resourceKey{obj: obj, field: res01BodyFieldName}]; ok {
 				rs.deferred = true
 				rs.deferredPos = ds.Defer
 			}
+		default:
+			// no-op
 		}
 	}
 }
@@ -325,7 +359,7 @@ func exprIsNilIdent(expr ast.Expr) bool {
 }
 
 func stmtHasReturnExcludingFuncLit(stmt ast.Stmt) bool {
-	found := false
+	var found bool
 	ast.Inspect(stmt, func(n ast.Node) bool {
 		if found {
 			return false

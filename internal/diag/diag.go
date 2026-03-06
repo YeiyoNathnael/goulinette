@@ -2,20 +2,25 @@ package diag
 
 import "sort"
 
+// Severity documents this exported type.
 type Severity string
 
 const (
-	SeverityError   Severity = "error"
+	// SeverityError marks a diagnostic as an error.
+	SeverityError Severity = "error"
+	// SeverityWarning marks a diagnostic as a warning.
 	SeverityWarning Severity = "warning"
 )
 
+// Position documents this exported type.
 type Position struct {
 	File string `json:"file"`
 	Line int    `json:"line,omitempty"`
 	Col  int    `json:"col,omitempty"`
 }
 
-type Diagnostic struct {
+// Finding documents this exported type.
+type Finding struct {
 	RuleID   string   `json:"ruleId"`
 	Severity Severity `json:"severity"`
 	Message  string   `json:"message"`
@@ -24,14 +29,16 @@ type Diagnostic struct {
 	Tool     string   `json:"tool,omitempty"`
 }
 
+// Result documents this exported type.
 type Result struct {
-	Diagnostics []Diagnostic `json:"diagnostics"`
-	RuntimeErrs []string     `json:"runtimeErrors,omitempty"`
+	Diagnostics []Finding `json:"diagnostics"`
+	RuntimeErrs []string  `json:"runtimeErrors,omitempty"`
 }
 
+// ExitCode documents this exported method.
 func (r Result) ExitCode(warningsAsErrors bool) int {
-	hasError := false
-	hasWarning := false
+	var hasError bool
+	var hasWarning bool
 	for _, d := range r.Diagnostics {
 		if d.Severity == SeverityError {
 			hasError = true
@@ -49,7 +56,8 @@ func (r Result) ExitCode(warningsAsErrors bool) int {
 	return 0
 }
 
-func Sort(diags []Diagnostic) {
+// Sort documents this exported function.
+func Sort(diags []Finding) {
 	sort.SliceStable(diags, func(i, j int) bool {
 		if diags[i].Pos.File != diags[j].Pos.File {
 			return diags[i].Pos.File < diags[j].Pos.File

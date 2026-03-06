@@ -3,31 +3,41 @@ package rules
 import (
 	"go/ast"
 	"go/types"
+	"strings"
 
 	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
 type fun03Rule struct{}
 
+const (
+	fun03Chapter = 5
+	fun03ErrName = "error"
+)
+
+// NewFUN03 returns the FUN03 rule implementation.
 func NewFUN03() Rule {
 	return fun03Rule{}
 }
 
+// ID returns the rule identifier.
 func (fun03Rule) ID() string {
-	return "FUN-03"
+	return ruleFUN03
 }
 
+// Chapter returns the chapter number for this rule.
 func (fun03Rule) Chapter() int {
-	return 5
+	return fun03Chapter
 }
 
-func (fun03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (fun03Rule) Run(ctx Context) ([]diag.Finding, error) {
 	pkgs, err := loadTypedPackages(ctx.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pkg := range pkgs {
 		for _, syntaxFile := range pkg.Syntax {
 			for _, decl := range syntaxFile.Decls {
@@ -48,11 +58,14 @@ func (fun03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				if !ok {
 					continue
 				}
+				if shouldSkipConcreteParamCheck(fn, sig) {
+					continue
+				}
 
 				if shouldWarnConcreteParamsTyped(sig) {
 					pos := pkg.Fset.Position(fn.Name.Pos())
-					diagnostics = append(diagnostics, diag.Diagnostic{
-						RuleID:   "FUN-03",
+					diagnostics = append(diagnostics, diag.Finding{
+						RuleID:   ruleFUN03,
 						Severity: diag.SeverityWarning,
 						Message:  "function accepts concrete types only; consider interface parameters for decoupling",
 						Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -62,8 +75,8 @@ func (fun03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 
 				if shouldWarnInterfaceReturnTyped(sig) {
 					pos := pkg.Fset.Position(fn.Name.Pos())
-					diagnostics = append(diagnostics, diag.Diagnostic{
-						RuleID:   "FUN-03",
+					diagnostics = append(diagnostics, diag.Finding{
+						RuleID:   ruleFUN03,
 						Severity: diag.SeverityWarning,
 						Message:  "function returns interface type; consider returning concrete type",
 						Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -83,8 +96,8 @@ func shouldWarnConcreteParamsTyped(sig *types.Signature) bool {
 		return false
 	}
 
-	hasConcrete := false
-	hasInterface := false
+	var hasConcrete bool
+	var hasInterface bool
 	for i := 0; i < params.Len(); i++ {
 		typ := params.At(i).Type()
 		if isInterfaceType(typ) {
@@ -97,6 +110,19 @@ func shouldWarnConcreteParamsTyped(sig *types.Signature) bool {
 	}
 
 	return hasConcrete && !hasInterface
+}
+
+func shouldSkipConcreteParamCheck(fn *ast.FuncDecl, sig *types.Signature) bool {
+	if fn == nil || sig == nil {
+		return false
+	}
+	if fn.Recv != nil {
+		return true
+	}
+	if fn.Name != nil && strings.HasPrefix(fn.Name.Name, "New") {
+		return true
+	}
+	return fn.Name != nil && fn.Name.Name == "Run" && sig.Recv() != nil
 }
 
 func shouldWarnInterfaceReturnTyped(sig *types.Signature) bool {
@@ -134,7 +160,7 @@ func isErrorType(t types.Type) bool {
 	if t == nil {
 		return false
 	}
-	errObj := types.Universe.Lookup("error")
+	errObj := types.Universe.Lookup(fun03ErrName)
 	if errObj == nil {
 		return false
 	}

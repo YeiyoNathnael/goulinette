@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TestIsNilableType documents this exported function.
 func TestIsNilableType(t *testing.T) {
 	tests := []struct {
 		name string
@@ -22,6 +23,7 @@ func TestIsNilableType(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			if got := isNilableType(tc.typ); got != tc.want {
 				t.Fatalf("isNilableType() = %v, want %v", got, tc.want)
 			}
@@ -29,6 +31,7 @@ func TestIsNilableType(t *testing.T) {
 	}
 }
 
+// TestClassifyReturnedErrorExpr documents this exported function.
 func TestClassifyReturnedErrorExpr(t *testing.T) {
 	info := &types.Info{}
 

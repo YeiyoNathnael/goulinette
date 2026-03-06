@@ -8,25 +8,34 @@ import (
 
 type fun02Rule struct{}
 
+const (
+	fun02Chapter = 5
+	goErrorType  = "error"
+)
+
+// NewFUN02 returns the FUN02 rule implementation.
 func NewFUN02() Rule {
 	return fun02Rule{}
 }
 
+// ID returns the rule identifier.
 func (fun02Rule) ID() string {
-	return "FUN-02"
+	return ruleFUN02
 }
 
+// Chapter returns the chapter number for this rule.
 func (fun02Rule) Chapter() int {
-	return 5
+	return fun02Chapter
 }
 
-func (fun02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (fun02Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		for _, decl := range pf.File.Decls {
 			fn, ok := decl.(*ast.FuncDecl)
@@ -36,8 +45,8 @@ func (fun02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 
 			if !errorMustBeLast(fn.Type.Results) {
 				pos := pf.FSet.Position(fn.Name.Pos())
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "FUN-02",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleFUN02,
 					Severity: diag.SeverityError,
 					Message:  "error must be the last return value",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -89,5 +98,5 @@ func flattenResultTypes(results *ast.FieldList) []ast.Expr {
 
 func isErrorTypeExpr(expr ast.Expr) bool {
 	id, ok := expr.(*ast.Ident)
-	return ok && id.Name == "error"
+	return ok && id.Name == goErrorType
 }

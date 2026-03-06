@@ -1,3 +1,4 @@
+//lint:file-ignore SA1019 This rule intentionally relies on ast.Object identity for same-file package var mutation tracking.
 package rules
 
 import (
@@ -9,60 +10,45 @@ import (
 
 type var04Rule struct{}
 
+type packageVar struct {
+	ident       *ast.Ident
+	hasInit     bool
+	filePath    string
+	declaration token.Pos
+}
+
+const (
+	var04Chapter = 3
+)
+
+// NewVAR04 returns the VAR04 rule implementation.
 func NewVAR04() Rule {
 	return var04Rule{}
 }
 
+// ID returns the rule identifier.
 func (var04Rule) ID() string {
-	return "VAR-04"
+	return ruleVAR04
 }
 
+// Chapter returns the chapter number for this rule.
 func (var04Rule) Chapter() int {
-	return 3
+	return var04Chapter
 }
 
-func (var04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (var04Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	type packageVar struct {
-		ident      *ast.Ident
-		hasInit    bool
-		filePath   string
-		declaration token.Pos
-	}
-
 	varsByFile := map[string][]packageVar{}
 	for _, pf := range parsed {
-		for _, decl := range pf.File.Decls {
-			gen, ok := decl.(*ast.GenDecl)
-			if !ok || gen.Tok != token.VAR {
-				continue
-			}
-			for _, spec := range gen.Specs {
-				vs, ok := spec.(*ast.ValueSpec)
-				if !ok {
-					continue
-				}
-				hasInit := len(vs.Values) > 0
-				for _, name := range vs.Names {
-					if name == nil || name.Name == "_" {
-						continue
-					}
-					varsByFile[pf.Path] = append(varsByFile[pf.Path], packageVar{
-						ident:      name,
-						hasInit:    hasInit,
-						filePath:   pf.Path,
-						declaration: name.Pos(),
-					})
-				}
-			}
-		}
+		varsByFile[pf.Path] = collectPackageVarsForFile(pf)
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		vars := varsByFile[pf.Path]
 		if len(vars) == 0 {
@@ -72,8 +58,8 @@ func (var04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 		for _, variable := range vars {
 			if !variable.hasInit {
 				pos := pf.FSet.Position(variable.ident.Pos())
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "VAR-04",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleVAR04,
 					Severity: diag.SeverityError,
 					Message:  "mutable package-level variables are forbidden",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -84,8 +70,8 @@ func (var04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 
 			if hasSameFileWriteToObj(pf.File, variable.ident.Obj) {
 				pos := pf.FSet.Position(variable.ident.Pos())
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "VAR-04",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleVAR04,
 					Severity: diag.SeverityError,
 					Message:  "package-level variable is written after initialization",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -98,12 +84,49 @@ func (var04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 	return diagnostics, nil
 }
 
+func collectPackageVarsForFile(pf parsedFile) []packageVar {
+	vars := make([]packageVar, 0)
+	for _, decl := range pf.File.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.VAR {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			vars = append(vars, packageVarsFromSpec(pf, spec)...)
+		}
+	}
+	return vars
+}
+
+func packageVarsFromSpec(pf parsedFile, spec ast.Spec) []packageVar {
+	vs, ok := spec.(*ast.ValueSpec)
+	if !ok {
+		return nil
+	}
+
+	hasInit := len(vs.Values) > 0
+	vars := make([]packageVar, 0)
+	for _, name := range vs.Names {
+		if name == nil || name.Name == "_" {
+			continue
+		}
+		vars = append(vars, packageVar{
+			ident:       name,
+			hasInit:     hasInit,
+			filePath:    pf.Path,
+			declaration: name.Pos(),
+		})
+	}
+
+	return vars
+}
+
 func hasSameFileWriteToObj(file *ast.File, obj *ast.Object) bool {
 	if obj == nil {
 		return false
 	}
 
-	found := false
+	var found bool
 	ast.Inspect(file, func(n ast.Node) bool {
 		if found {
 			return false
@@ -111,7 +134,7 @@ func hasSameFileWriteToObj(file *ast.File, obj *ast.Object) bool {
 
 		switch stmt := n.(type) {
 		case *ast.AssignStmt:
-			if stmt.Tok != token.ASSIGN && stmt.Tok != token.ADD_ASSIGN && stmt.Tok != token.SUB_ASSIGN && stmt.Tok != token.MUL_ASSIGN && stmt.Tok != token.QUO_ASSIGN && stmt.Tok != token.REM_ASSIGN && stmt.Tok != token.AND_ASSIGN && stmt.Tok != token.OR_ASSIGN && stmt.Tok != token.XOR_ASSIGN && stmt.Tok != token.SHL_ASSIGN && stmt.Tok != token.SHR_ASSIGN && stmt.Tok != token.AND_NOT_ASSIGN {
+			if !isWriteAssignmentToken(stmt.Tok) {
 				return true
 			}
 			for _, lhs := range stmt.Lhs {
@@ -127,10 +150,32 @@ func hasSameFileWriteToObj(file *ast.File, obj *ast.Object) bool {
 				found = true
 				return false
 			}
+		default:
+			// no-op
 		}
 
 		return true
 	})
 
 	return found
+}
+
+func isWriteAssignmentToken(tok token.Token) bool {
+	switch tok {
+	case token.ASSIGN,
+		token.ADD_ASSIGN,
+		token.SUB_ASSIGN,
+		token.MUL_ASSIGN,
+		token.QUO_ASSIGN,
+		token.REM_ASSIGN,
+		token.AND_ASSIGN,
+		token.OR_ASSIGN,
+		token.XOR_ASSIGN,
+		token.SHL_ASSIGN,
+		token.SHR_ASSIGN,
+		token.AND_NOT_ASSIGN:
+		return true
+	default:
+		return false
+	}
 }

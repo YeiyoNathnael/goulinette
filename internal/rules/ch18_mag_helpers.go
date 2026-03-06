@@ -10,6 +10,14 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+const (
+	magHelperErrorsPkg      = "errors"
+	magHelperFmtPkg         = "fmt"
+	magHelperNewFn          = "New"
+	magHelperErrorfFn       = "Errorf"
+	magHelperTestFileSuffix = "_test.go"
+)
+
 type magAstUnit struct {
 	File     *ast.File
 	FSet     *token.FileSet
@@ -59,7 +67,7 @@ func magAstUnitsFromPackage(pkg *packages.Package) []magAstUnit {
 		if f == nil || pkg.Fset == nil {
 			continue
 		}
-		filename := ""
+		var filename string
 		if i < len(pkg.CompiledGoFiles) {
 			filename = pkg.CompiledGoFiles[i]
 		}
@@ -133,10 +141,10 @@ func isErrorsNewOrFmtErrorf(fun ast.Expr) bool {
 	if !ok {
 		return false
 	}
-	if id.Name == "errors" && sel.Sel.Name == "New" {
+	if id.Name == magHelperErrorsPkg && sel.Sel.Name == magHelperNewFn {
 		return true
 	}
-	if id.Name == "fmt" && sel.Sel.Name == "Errorf" {
+	if id.Name == magHelperFmtPkg && sel.Sel.Name == magHelperErrorfFn {
 		return true
 	}
 	return false
@@ -168,7 +176,7 @@ func shortStringLiteral(lit *ast.BasicLit, minLen int) bool {
 }
 
 func isTestFile(path string) bool {
-	return strings.HasSuffix(filepath.Base(path), "_test.go")
+	return strings.HasSuffix(filepath.Base(path), magHelperTestFileSuffix)
 }
 
 func numericLiteralKey(lit *ast.BasicLit, parent ast.Node) string {

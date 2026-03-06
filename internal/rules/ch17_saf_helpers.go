@@ -2,22 +2,22 @@ package rules
 
 import "go/types"
 
-func isSyncNamedType(t types.Type, name string) bool {
-	t = types.Unalias(t)
-	named, ok := t.(*types.Named)
-	if !ok || named.Obj() == nil || named.Obj().Pkg() == nil {
-		return false
-	}
-	return named.Obj().Pkg().Path() == "sync" && named.Obj().Name() == name
-}
+const (
+	safSyncPkgPath      = "sync"
+	safWaitGroupName    = "WaitGroup"
+	safLockMethodName   = "Lock"
+	safUnlockMethodName = "Unlock"
+	safNoCopyName       = "noCopy"
+	safNoCopyTypeName   = "NoCopy"
+)
 
 var syncCopySensitiveTypeNames = map[string]struct{}{
-	"Mutex":     {},
-	"RWMutex":   {},
-	"WaitGroup": {},
-	"Once":      {},
-	"Cond":      {},
-	"Map":       {},
+	"Mutex":          {},
+	"RWMutex":        {},
+	safWaitGroupName: {},
+	"Once":           {},
+	"Cond":           {},
+	"Map":            {},
 }
 
 func isSyncCopySensitiveType(t types.Type) bool {
@@ -26,7 +26,7 @@ func isSyncCopySensitiveType(t types.Type) bool {
 	if !ok || named.Obj() == nil || named.Obj().Pkg() == nil {
 		return false
 	}
-	if named.Obj().Pkg().Path() != "sync" {
+	if named.Obj().Pkg().Path() != safSyncPkgPath {
 		return false
 	}
 	_, ok = syncCopySensitiveTypeNames[named.Obj().Name()]
@@ -63,7 +63,7 @@ func hasLockUnlockPair(t types.Type) bool {
 	if isNoCopyTypeName(t) {
 		return true
 	}
-	if hasMethodNamedNoArgsNoResults(t, "Lock") && hasMethodNamedNoArgsNoResults(t, "Unlock") {
+	if hasMethodNamedNoArgsNoResults(t, safLockMethodName) && hasMethodNamedNoArgsNoResults(t, safUnlockMethodName) {
 		return true
 	}
 	if _, isPtr := t.(*types.Pointer); isPtr {
@@ -73,7 +73,7 @@ func hasLockUnlockPair(t types.Type) bool {
 		return false
 	}
 	pt := types.NewPointer(t)
-	return hasMethodNamedNoArgsNoResults(pt, "Lock") && hasMethodNamedNoArgsNoResults(pt, "Unlock")
+	return hasMethodNamedNoArgsNoResults(pt, safLockMethodName) && hasMethodNamedNoArgsNoResults(pt, safUnlockMethodName)
 }
 
 func isNoCopyTypeName(t types.Type) bool {
@@ -82,7 +82,7 @@ func isNoCopyTypeName(t types.Type) bool {
 	if !ok || named.Obj() == nil {
 		return false
 	}
-	return named.Obj().Name() == "noCopy" || named.Obj().Name() == "NoCopy"
+	return named.Obj().Name() == safNoCopyName || named.Obj().Name() == safNoCopyTypeName
 }
 
 func containsCopySensitiveValue(t types.Type, seen map[types.Type]bool) bool {
@@ -116,6 +116,8 @@ func containsCopySensitiveValue(t types.Type, seen map[types.Type]bool) bool {
 		}
 	case *types.Array:
 		return containsCopySensitiveValue(tt.Elem(), seen)
+	default:
+		return false
 	}
 
 	return false

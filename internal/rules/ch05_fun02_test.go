@@ -7,6 +7,12 @@ import (
 	"testing"
 )
 
+const (
+	fun02TestFileName  = "x.go"
+	fun02ParseFailHint = "parse failed: %v"
+)
+
+// TestErrorMustBeLast documents this exported function.
 func TestErrorMustBeLast(t *testing.T) {
 	tests := []struct {
 		name string
@@ -27,12 +33,16 @@ func TestErrorMustBeLast(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			fset := token.NewFileSet()
-			file, err := parser.ParseFile(fset, "x.go", tc.src, parser.ParseComments)
+			file, err := parser.ParseFile(fset, fun02TestFileName, tc.src, parser.ParseComments)
 			if err != nil {
-				t.Fatalf("parse failed: %v", err)
+				t.Fatalf(fun02ParseFailHint, err)
 			}
-			fn := file.Decls[0].(*ast.FuncDecl)
+			fn, ok := file.Decls[0].(*ast.FuncDecl)
+			if !ok {
+				t.Fatalf("expected func decl")
+			}
 			if got := errorMustBeLast(fn.Type.Results); got != tc.want {
 				t.Fatalf("errorMustBeLast() = %v, want %v", got, tc.want)
 			}

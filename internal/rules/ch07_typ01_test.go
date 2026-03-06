@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// TestIsLocalStructPointerType documents this exported function.
 func TestIsLocalStructPointerType(t *testing.T) {
 	localPkg := types.NewPackage("example.com/app", "app")
 	foreignPkg := types.NewPackage("example.com/other", "other")
@@ -25,6 +26,7 @@ func TestIsLocalStructPointerType(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			got := isLocalStructPointerType(tc.typ, localPkg)
 			if got != tc.want {
 				t.Fatalf("isLocalStructPointerType() = %v, want %v", got, tc.want)

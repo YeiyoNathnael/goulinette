@@ -2,6 +2,7 @@ package rules
 
 import (
 	"go/ast"
+	"go/token"
 	"go/types"
 
 	"github.com/YeiyoNathnael/goulinette/internal/diag"
@@ -9,54 +10,67 @@ import (
 
 type typ01Rule struct{}
 
+const typ01Chapter = 7
+
+// NewTYP01 returns the TYP01 rule implementation.
 func NewTYP01() Rule {
 	return typ01Rule{}
 }
 
+// ID returns the rule identifier.
 func (typ01Rule) ID() string {
-	return "TYP-01"
+	return ruleTYP01
 }
 
+// Chapter returns the chapter number for this rule.
 func (typ01Rule) Chapter() int {
-	return 7
+	return typ01Chapter
 }
 
-func (typ01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (typ01Rule) Run(ctx Context) ([]diag.Finding, error) {
 	pkgs, err := loadTypedPackages(ctx.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pkg := range pkgs {
 		for _, syntaxFile := range pkg.Syntax {
-			for _, decl := range syntaxFile.Decls {
-				fn, ok := decl.(*ast.FuncDecl)
-				if !ok || fn.Body == nil || fn.Type == nil || fn.Type.Params == nil {
-					continue
-				}
-
-				params := pointerParams(fn, pkg.TypesInfo, pkg.Types)
-				for _, p := range params {
-					usage := analyzePointerParamUsage(fn.Body, p)
-					if !usage.used || usage.mutated || usage.escaped {
-						continue
-					}
-
-					pos := pkg.Fset.Position(p.Pos())
-					diagnostics = append(diagnostics, diag.Diagnostic{
-						RuleID:   "TYP-01",
-						Severity: diag.SeverityWarning,
-						Message:  "pointer parameter appears read-only; prefer value parameter unless mutation is needed",
-						Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-						Hint:     "change parameter to value type or document mutation intent",
-					})
-				}
-			}
+			diagnostics = append(diagnostics, typ01DiagnosticsForDecls(pkg.Fset, pkg.TypesInfo, pkg.Types, syntaxFile.Decls)...)
 		}
 	}
 
 	return diagnostics, nil
+}
+
+func typ01DiagnosticsForDecls(fset *token.FileSet, info *types.Info, currentPkg *types.Package, decls []ast.Decl) []diag.Finding {
+	diagnostics := make([]diag.Finding, 0)
+	for _, decl := range decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Body == nil || fn.Type == nil || fn.Type.Params == nil {
+			continue
+		}
+
+		params := pointerParams(fn, info, currentPkg)
+		for _, p := range params {
+			usage := analyzePointerParamUsage(fn.Body, p)
+			if !usage.used || usage.mutated || usage.escaped {
+				continue
+			}
+
+			pos := fset.Position(p.Pos())
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ruleTYP01,
+				Severity: diag.SeverityWarning,
+				Message:  "pointer parameter appears read-only; prefer value parameter unless mutation is needed",
+				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
+				Hint:     "change parameter to value type or document mutation intent",
+			})
+		}
+	}
+
+	return diagnostics
 }
 
 func pointerParams(fn *ast.FuncDecl, info *types.Info, currentPkg *types.Package) []*ast.Ident {
@@ -128,15 +142,11 @@ func analyzePointerParamUsage(body *ast.BlockStmt, param *ast.Ident) pointerUsag
 
 		switch x := n.(type) {
 		case *ast.Ident:
-			if x.Obj == param.Obj {
-				usage.used = true
-			}
+			markPointerIdentUsage(&usage, x, param)
 		case *ast.AssignStmt:
-			for _, lhs := range x.Lhs {
-				if writesThroughPointer(lhs, param) {
-					usage.mutated = true
-					return true
-				}
+			checkPointerAssignmentMutation(&usage, x, param)
+			if usage.mutated {
+				return true
 			}
 		case *ast.IncDecStmt:
 			if writesThroughPointer(x.X, param) {
@@ -148,12 +158,35 @@ func analyzePointerParamUsage(body *ast.BlockStmt, param *ast.Ident) pointerUsag
 				usage.escaped = true
 				return true
 			}
+		default:
+			// no-op
 		}
 
 		return true
 	})
 
 	return usage
+}
+
+func markPointerIdentUsage(usage *pointerUsage, id *ast.Ident, param *ast.Ident) {
+	if usage == nil || id == nil || param == nil {
+		return
+	}
+	if id.Obj == param.Obj {
+		usage.used = true
+	}
+}
+
+func checkPointerAssignmentMutation(usage *pointerUsage, stmt *ast.AssignStmt, param *ast.Ident) {
+	if usage == nil || stmt == nil || param == nil {
+		return
+	}
+	for _, lhs := range stmt.Lhs {
+		if writesThroughPointer(lhs, param) {
+			usage.mutated = true
+			return
+		}
+	}
 }
 
 func writesThroughPointer(expr ast.Expr, param *ast.Ident) bool {

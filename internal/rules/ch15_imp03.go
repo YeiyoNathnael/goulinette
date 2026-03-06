@@ -8,25 +8,33 @@ import (
 
 type imp03Rule struct{}
 
+const (
+	imp03Chapter = 15
+)
+
+// NewIMP03 returns the IMP03 rule implementation.
 func NewIMP03() Rule {
 	return imp03Rule{}
 }
 
+// ID returns the rule identifier.
 func (imp03Rule) ID() string {
-	return "IMP-03"
+	return ruleIMP03
 }
 
+// Chapter returns the chapter number for this rule.
 func (imp03Rule) Chapter() int {
-	return 15
+	return imp03Chapter
 }
 
-func (imp03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (imp03Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		defaultNameCount := make(map[string]int)
 		for _, imp := range pf.File.Imports {
@@ -53,8 +61,8 @@ func (imp03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				if importSpecHasComment(imp) {
 					continue
 				}
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "IMP-03",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleIMP03,
 					Severity: diag.SeverityWarning,
 					Message:  "blank imports should include a comment explaining side effects",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -63,8 +71,8 @@ func (imp03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				continue
 
 			case ".":
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "IMP-03",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleIMP03,
 					Severity: diag.SeverityWarning,
 					Message:  "dot imports should be avoided",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -74,8 +82,8 @@ func (imp03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 			}
 
 			if len(alias) == 1 {
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "IMP-03",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleIMP03,
 					Severity: diag.SeverityWarning,
 					Message:  "import alias should be descriptive",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -91,8 +99,8 @@ func (imp03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				continue
 			}
 
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "IMP-03",
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ruleIMP03,
 				Severity: diag.SeverityWarning,
 				Message:  "import alias appears unnecessary",
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},

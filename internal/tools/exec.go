@@ -10,10 +10,12 @@ import (
 	"time"
 )
 
+// Run documents this exported function.
 func Run(ctx context.Context, timeout time.Duration, name string, args ...string) (string, error) {
 	return RunInDir(ctx, timeout, "", name, args...)
 }
 
+// RunInDir documents this exported function.
 func RunInDir(ctx context.Context, timeout time.Duration, dir string, name string, args ...string) (string, error) {
 	if _, err := exec.LookPath(name); err != nil {
 		return "", fmt.Errorf("tool %q not found in PATH", name)
@@ -38,8 +40,8 @@ func RunInDir(ctx context.Context, timeout time.Duration, dir string, name strin
 	}
 
 	if errors.Is(cctx.Err(), context.DeadlineExceeded) {
-		return combined, fmt.Errorf("command timed out: %s %s", name, strings.Join(args, " "))
+		return "", fmt.Errorf("command timed out: %s %s", name, strings.Join(args, " "))
 	}
 
-	return combined, fmt.Errorf("command failed: %s %s: %w", name, strings.Join(args, " "), err)
+	return "", fmt.Errorf("command failed: %s %s: %w", name, strings.Join(args, " "), err)
 }

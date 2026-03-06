@@ -8,6 +8,12 @@ import (
 	"testing"
 )
 
+const (
+	panicHelpersTestFileName  = "x.go"
+	panicHelpersParseFailHint = "parse failed: %v"
+)
+
+// TestIsRecoverInDeferredAnonymousFunc documents this exported function.
 func TestIsRecoverInDeferredAnonymousFunc(t *testing.T) {
 	src := `package p
 func f() {
@@ -17,9 +23,9 @@ func f() {
 }`
 
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "x.go", src, parser.ParseComments)
+	file, err := parser.ParseFile(fset, panicHelpersTestFileName, src, parser.ParseComments)
 	if err != nil {
-		t.Fatalf("parse failed: %v", err)
+		t.Fatalf(panicHelpersParseFailHint, err)
 	}
 
 	calls := collectCalls(file, "recover")
@@ -31,6 +37,7 @@ func f() {
 	}
 }
 
+// TestIsOperationalPanicArg documents this exported function.
 func TestIsOperationalPanicArg(t *testing.T) {
 	info := &types.Info{}
 	msg := &ast.BasicLit{Kind: token.STRING, Value: "\"failed to connect\""}

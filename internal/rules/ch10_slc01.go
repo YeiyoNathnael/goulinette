@@ -10,25 +10,34 @@ import (
 
 type slc01Rule struct{}
 
+const (
+	slc01Chapter = 10
+	slc01JSON    = "json"
+)
+
+// NewSLC01 returns the SLC01 rule implementation.
 func NewSLC01() Rule {
 	return slc01Rule{}
 }
 
+// ID returns the rule identifier.
 func (slc01Rule) ID() string {
-	return "SLC-01"
+	return ruleSLC01
 }
 
+// Chapter returns the chapter number for this rule.
 func (slc01Rule) Chapter() int {
-	return 10
+	return slc01Chapter
 }
 
-func (slc01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (slc01Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		ast.Inspect(pf.File, func(n ast.Node) bool {
 			lit, ok := n.(*ast.CompositeLit)
@@ -46,8 +55,8 @@ func (slc01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 			}
 
 			pos := pf.FSet.Position(lit.Lbrace)
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "SLC-01",
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ruleSLC01,
 				Severity: diag.SeverityWarning,
 				Message:  "prefer nil slices over empty slice literals when initializing empty collections",
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -82,7 +91,7 @@ func hasSliceLiteralJustification(file *ast.File, fset *token.FileSet, line int)
 		}
 
 		text := strings.ToLower(cg.Text())
-		if strings.Contains(text, "non-nil") || strings.Contains(text, "json") {
+		if strings.Contains(text, "non-nil") || strings.Contains(text, slc01JSON) {
 			return true
 		}
 	}

@@ -14,50 +14,72 @@ const (
 	ansiRed    = "\x1b[31m"
 	ansiYellow = "\x1b[33m"
 	ansiGray   = "\x1b[90m"
+
+	chapterFMT = 1
+	chapterNAM = 2
+	chapterVAR = 3
+	chapterCTL = 4
+	chapterFUN = 5
+	chapterERR = 6
+	chapterTYP = 7
+	chapterSTR = 8
+	chapterDOC = 9
+	chapterSLC = 10
+	chapterCON = 11
+	chapterCER = 12
+	chapterLIM = 13
+	chapterCTX = 14
+	chapterIMP = 15
+	chapterRES = 16
+	chapterSAF = 17
+	chapterMAG = 18
+	chapterTST = 19
+
+	defaultChapterColor = "\x1b[38;5;81m"
 )
 
 var chapterColors = map[int]string{
-	1:  "\x1b[38;5;39m",
-	2:  "\x1b[38;5;208m",
-	3:  "\x1b[38;5;45m",
-	4:  "\x1b[38;5;171m",
-	5:  "\x1b[38;5;220m",
-	6:  "\x1b[38;5;196m",
-	7:  "\x1b[38;5;51m",
-	8:  "\x1b[38;5;99m",
-	9:  "\x1b[38;5;34m",
-	10: "\x1b[38;5;214m",
-	11: "\x1b[38;5;129m",
-	12: "\x1b[38;5;44m",
-	13: "\x1b[38;5;177m",
-	14: "\x1b[38;5;81m",
-	15: "\x1b[38;5;203m",
-	16: "\x1b[38;5;141m",
-	17: "\x1b[38;5;40m",
-	18: "\x1b[38;5;201m",
-	19: "\x1b[38;5;93m",
+	chapterFMT: "\x1b[38;5;39m",
+	chapterNAM: "\x1b[38;5;208m",
+	chapterVAR: "\x1b[38;5;45m",
+	chapterCTL: "\x1b[38;5;171m",
+	chapterFUN: "\x1b[38;5;220m",
+	chapterERR: "\x1b[38;5;196m",
+	chapterTYP: "\x1b[38;5;51m",
+	chapterSTR: "\x1b[38;5;99m",
+	chapterDOC: "\x1b[38;5;34m",
+	chapterSLC: "\x1b[38;5;214m",
+	chapterCON: "\x1b[38;5;129m",
+	chapterCER: "\x1b[38;5;44m",
+	chapterLIM: "\x1b[38;5;177m",
+	chapterCTX: defaultChapterColor,
+	chapterIMP: "\x1b[38;5;203m",
+	chapterRES: "\x1b[38;5;141m",
+	chapterSAF: "\x1b[38;5;40m",
+	chapterMAG: "\x1b[38;5;201m",
+	chapterTST: "\x1b[38;5;93m",
 }
 
 var ruleChapters = map[string]int{
-	"FMT": 1,
-	"NAM": 2,
-	"VAR": 3,
-	"CTL": 4,
-	"FUN": 5,
-	"ERR": 6,
-	"TYP": 7,
-	"STR": 8,
-	"DOC": 9,
-	"SLC": 10,
-	"CON": 11,
-	"CER": 12,
-	"LIM": 13,
-	"CTX": 14,
-	"IMP": 15,
-	"RES": 16,
-	"SAF": 17,
-	"MAG": 18,
-	"TST": 19,
+	"FMT": chapterFMT,
+	"NAM": chapterNAM,
+	"VAR": chapterVAR,
+	"CTL": chapterCTL,
+	"FUN": chapterFUN,
+	"ERR": chapterERR,
+	"TYP": chapterTYP,
+	"STR": chapterSTR,
+	"DOC": chapterDOC,
+	"SLC": chapterSLC,
+	"CON": chapterCON,
+	"CER": chapterCER,
+	"LIM": chapterLIM,
+	"CTX": chapterCTX,
+	"IMP": chapterIMP,
+	"RES": chapterRES,
+	"SAF": chapterSAF,
+	"MAG": chapterMAG,
+	"TST": chapterTST,
 }
 
 func printText(w io.Writer, result diag.Result) {
@@ -65,18 +87,18 @@ func printText(w io.Writer, result diag.Result) {
 		severityLabel := colorizeSeverity(d.Severity)
 		ruleLabel := colorizeRuleID(d.RuleID)
 		if d.Pos.File == "" {
-			_, _ = fmt.Fprintf(w, "%s [%s] %s\n", severityLabel, ruleLabel, d.Message)
+			fmt.Fprintf(w, "%s [%s] %s\n", severityLabel, ruleLabel, d.Message)
 			continue
 		}
 		if d.Pos.Line > 0 {
-			_, _ = fmt.Fprintf(w, "%s%s:%d:%d%s: %s [%s] %s\n", ansiGray, d.Pos.File, d.Pos.Line, d.Pos.Col, ansiReset, severityLabel, ruleLabel, d.Message)
+			fmt.Fprintf(w, "%s%s:%d:%d%s: %s [%s] %s\n", ansiGray, d.Pos.File, d.Pos.Line, d.Pos.Col, ansiReset, severityLabel, ruleLabel, d.Message)
 			continue
 		}
-		_, _ = fmt.Fprintf(w, "%s%s%s: %s [%s] %s\n", ansiGray, d.Pos.File, ansiReset, severityLabel, ruleLabel, d.Message)
+		fmt.Fprintf(w, "%s%s%s: %s [%s] %s\n", ansiGray, d.Pos.File, ansiReset, severityLabel, ruleLabel, d.Message)
 	}
 
 	for _, runtimeErr := range result.RuntimeErrs {
-		_, _ = fmt.Fprintf(w, "runtime: %s\n", runtimeErr)
+		fmt.Fprintf(w, "runtime: %s\n", runtimeErr)
 	}
 }
 
@@ -84,14 +106,17 @@ func colorizeRuleID(ruleID string) string {
 	chapter := chapterForRuleID(ruleID)
 	color, ok := chapterColors[chapter]
 	if !ok {
-		color = "\x1b[38;5;81m"
+		color = defaultChapterColor
 	}
 	return ansiBold + color + ruleID + ansiReset
 }
 
 func chapterForRuleID(ruleID string) int {
 	prefix, _, _ := strings.Cut(ruleID, "-")
-	chapter, _ := ruleChapters[prefix]
+	chapter, ok := ruleChapters[prefix]
+	if !ok {
+		return 0
+	}
 	return chapter
 }
 

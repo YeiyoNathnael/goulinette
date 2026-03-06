@@ -7,8 +7,16 @@ import (
 	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
-func ParseOutputDiagnostics(output, ruleID, tool string, severity diag.Severity) []diag.Diagnostic {
-	diagnostics := make([]diag.Diagnostic, 0)
+const (
+	minDiagnosticParts   = 3
+	diagnosticMessageIdx = 2
+	partsWithColumn      = 3
+	messageIdxWithColumn = 3
+)
+
+// ParseOutputDiagnostics documents this exported function.
+func ParseOutputDiagnostics(output, ruleID, tool string, severity diag.Severity) []diag.Finding {
+	diagnostics := make([]diag.Finding, 0)
 	for _, raw := range strings.Split(output, "\n") {
 		line := strings.TrimSpace(raw)
 		if line == "" || strings.HasPrefix(line, "#") {
@@ -21,10 +29,10 @@ func ParseOutputDiagnostics(output, ruleID, tool string, severity diag.Severity)
 	return diagnostics
 }
 
-func parseSingleLine(line, ruleID, tool string, severity diag.Severity) diag.Diagnostic {
+func parseSingleLine(line, ruleID, tool string, severity diag.Severity) diag.Finding {
 	parts := strings.Split(line, ":")
-	if len(parts) < 3 {
-		return diag.Diagnostic{
+	if len(parts) < minDiagnosticParts {
+		return diag.Finding{
 			RuleID:   ruleID,
 			Severity: severity,
 			Message:  line,
@@ -35,14 +43,14 @@ func parseSingleLine(line, ruleID, tool string, severity diag.Severity) diag.Dia
 	file := strings.TrimSpace(parts[0])
 	lineNo, lineErr := strconv.Atoi(strings.TrimSpace(parts[1]))
 	if lineErr != nil {
-		return diag.Diagnostic{RuleID: ruleID, Severity: severity, Message: line, Tool: tool}
+		return diag.Finding{RuleID: ruleID, Severity: severity, Message: line, Tool: tool}
 	}
 
-	colNo := 0
-	messageIdx := 2
-	if c, colErr := strconv.Atoi(strings.TrimSpace(parts[2])); colErr == nil {
+	var colNo int
+	messageIdx := diagnosticMessageIdx
+	if c, colErr := strconv.Atoi(strings.TrimSpace(parts[partsWithColumn-1])); colErr == nil {
 		colNo = c
-		messageIdx = 3
+		messageIdx = messageIdxWithColumn
 	}
 
 	message := strings.TrimSpace(strings.Join(parts[messageIdx:], ":"))
@@ -50,7 +58,7 @@ func parseSingleLine(line, ruleID, tool string, severity diag.Severity) diag.Dia
 		message = line
 	}
 
-	return diag.Diagnostic{
+	return diag.Finding{
 		RuleID:   ruleID,
 		Severity: severity,
 		Message:  message,

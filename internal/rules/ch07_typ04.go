@@ -9,30 +9,40 @@ import (
 
 type typ04Rule struct{}
 
+const (
+	typ04Chapter      = 7
+	typ04CommaOKArity = 2
+	typ04AstStackCap  = 32
+)
+
+// NewTYP04 returns the TYP04 rule implementation.
 func NewTYP04() Rule {
 	return typ04Rule{}
 }
 
+// ID returns the rule identifier.
 func (typ04Rule) ID() string {
-	return "TYP-04"
+	return ruleTYP04
 }
 
+// Chapter returns the chapter number for this rule.
 func (typ04Rule) Chapter() int {
-	return 7
+	return typ04Chapter
 }
 
-func (typ04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (typ04Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		for _, recv := range collectSingleValueReceives(pf.File) {
 			pos := pf.FSet.Position(recv.OpPos)
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "TYP-04",
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ruleTYP04,
 				Severity: diag.SeverityError,
 				Message:  "channel reads should use comma-ok form when channels may be closed",
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -46,7 +56,7 @@ func (typ04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 
 func collectSingleValueReceives(file *ast.File) []*ast.UnaryExpr {
 	out := make([]*ast.UnaryExpr, 0)
-	stack := make([]ast.Node, 0, 32)
+	stack := make([]ast.Node, 0, typ04AstStackCap)
 
 	ast.Inspect(file, func(n ast.Node) bool {
 		if n == nil {
@@ -76,7 +86,7 @@ func isTwoValueReceive(un *ast.UnaryExpr, ancestors []ast.Node) bool {
 			continue
 		}
 		for _, rhs := range as.Rhs {
-			if rhs == un && len(as.Lhs) >= 2 {
+			if rhs == un && len(as.Lhs) >= typ04CommaOKArity {
 				return true
 			}
 		}

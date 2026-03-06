@@ -8,25 +8,39 @@ import (
 
 type tst01Rule struct{}
 
+const (
+	tst01Chapter            = 19
+	tst01MinGroupedTests    = 3
+	tst01MessageUnrolled    = "multiple subtests are manually unrolled; use table-driven tests with a range loop"
+	tst01HintUnrolled       = "create a tests table slice and iterate with for _, tc := range tests { t.Run(...) }"
+	tst01HintBySubject      = "combine related Test* variants into one table-driven test with t.Run"
+	tst01SubjectMessageBase = "test variations for "
+	tst01SubjectMessageSfx  = " should use a table-driven pattern"
+)
+
+// NewTST01 returns the TST01 rule implementation.
 func NewTST01() Rule {
 	return tst01Rule{}
 }
 
+// ID returns the rule identifier.
 func (tst01Rule) ID() string {
-	return "TST-01"
+	return ruleTST01
 }
 
+// Chapter returns the chapter number for this rule.
 func (tst01Rule) Chapter() int {
-	return 19
+	return tst01Chapter
 }
 
-func (tst01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (tst01Rule) Run(ctx Context) ([]diag.Finding, error) {
 	files, err := collectTestFiles(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, tf := range files {
 		tests := make([]tstFuncInfo, 0)
 		for _, d := range tf.File.Decls {
@@ -50,7 +64,7 @@ func (tst01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				Subject:      testSubject(fn.Name.Name),
 			})
 
-			topLevelTRuns := 0
+			var topLevelTRuns int
 			for _, stmt := range fn.Body.List {
 				expr, ok := stmt.(*ast.ExprStmt)
 				if !ok {
@@ -63,14 +77,14 @@ func (tst01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				topLevelTRuns++
 			}
 
-			if topLevelTRuns >= 3 {
+			if topLevelTRuns >= tst01MinGroupedTests {
 				pos := tf.FSet.Position(fn.Pos())
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "TST-01",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleTST01,
 					Severity: diag.SeverityError,
-					Message:  "multiple subtests are manually unrolled; use table-driven tests with a range loop",
+					Message:  tst01MessageUnrolled,
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-					Hint:     "create a tests table slice and iterate with for _, tc := range tests { t.Run(...) }",
+					Hint:     tst01HintUnrolled,
 				})
 			}
 		}
@@ -84,17 +98,17 @@ func (tst01Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 		}
 
 		for subject, group := range bySubject {
-			if len(group) < 3 {
+			if len(group) < tst01MinGroupedTests {
 				continue
 			}
 			for _, ti := range group {
 				pos := tf.FSet.Position(ti.Node.Pos())
-				diagnostics = append(diagnostics, diag.Diagnostic{
-					RuleID:   "TST-01",
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ruleTST01,
 					Severity: diag.SeverityError,
-					Message:  "test variations for " + subject + " should use a table-driven pattern",
+					Message:  tst01SubjectMessageBase + subject + tst01SubjectMessageSfx,
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-					Hint:     "combine related Test* variants into one table-driven test with t.Run",
+					Hint:     tst01HintBySubject,
 				})
 			}
 		}

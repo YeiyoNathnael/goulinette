@@ -8,19 +8,25 @@ import (
 
 type fun04Rule struct{}
 
+const fun04Chapter = 5
+
+// NewFUN04 returns the FUN04 rule implementation.
 func NewFUN04() Rule {
 	return fun04Rule{}
 }
 
+// ID returns the rule identifier.
 func (fun04Rule) ID() string {
-	return "FUN-04"
+	return ruleFUN04
 }
 
+// Chapter returns the chapter number for this rule.
 func (fun04Rule) Chapter() int {
-	return 5
+	return fun04Chapter
 }
 
-func (fun04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (fun04Rule) Run(ctx Context) ([]diag.Finding, error) {
 	parsed, err := parseFiles(ctx.Files)
 	if err != nil {
 		return nil, err
@@ -37,7 +43,7 @@ func (fun04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 		}
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pf := range parsed {
 		ast.Inspect(pf.File, func(n ast.Node) bool {
 			exprStmt, ok := n.(*ast.ExprStmt)
@@ -61,8 +67,8 @@ func (fun04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 			}
 
 			pos := pf.FSet.Position(call.Lparen)
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "FUN-04",
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ruleFUN04,
 				Severity: diag.SeverityError,
 				Message:  "function return values are ignored; explicitly discard unused values with _",
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
@@ -81,7 +87,7 @@ func countFuncReturns(ft *ast.FuncType) int {
 		return 0
 	}
 
-	count := 0
+	var count int
 	for _, field := range ft.Results.List {
 		if len(field.Names) == 0 {
 			count++

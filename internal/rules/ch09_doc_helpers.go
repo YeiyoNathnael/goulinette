@@ -15,72 +15,108 @@ type docTarget struct {
 
 func collectExportedDocTargets(file *ast.File) []docTarget {
 	targets := make([]docTarget, 0)
-
 	for _, decl := range file.Decls {
-		switch d := decl.(type) {
-		case *ast.FuncDecl:
-			if d.Name == nil || !d.Name.IsExported() {
-				continue
-			}
-			targets = append(targets, docTarget{
-				Name:           d.Name.Name,
-				Doc:            d.Doc,
-				Pos:            d.Name.Pos(),
-				PrimaryForDoc3: true,
-			})
-
-		case *ast.GenDecl:
-			for _, spec := range d.Specs {
-				switch s := spec.(type) {
-				case *ast.TypeSpec:
-					if s.Name == nil || !s.Name.IsExported() {
-						continue
-					}
-					doc := s.Doc
-					if doc == nil {
-						doc = d.Doc
-					}
-					targets = append(targets, docTarget{
-						Name:           s.Name.Name,
-						Doc:            doc,
-						Pos:            s.Name.Pos(),
-						PrimaryForDoc3: true,
-					})
-
-				case *ast.ValueSpec:
-					doc := s.Doc
-					if doc == nil {
-						doc = d.Doc
-					}
-
-					firstExportedIndex := -1
-					for i, name := range s.Names {
-						if name != nil && name.IsExported() {
-							firstExportedIndex = i
-							break
-						}
-					}
-					if firstExportedIndex == -1 {
-						continue
-					}
-
-					for i, name := range s.Names {
-						if name == nil || !name.IsExported() {
-							continue
-						}
-						targets = append(targets, docTarget{
-							Name:           name.Name,
-							Doc:            doc,
-							Pos:            name.Pos(),
-							PrimaryForDoc3: i == firstExportedIndex,
-						})
-					}
-				}
-			}
-		}
+		targets = append(targets, docTargetsForDecl(decl)...)
 	}
 
 	return targets
+}
+
+func docTargetsForDecl(decl ast.Decl) []docTarget {
+	switch d := decl.(type) {
+	case *ast.FuncDecl:
+		return docTargetsForFuncDecl(d)
+	case *ast.GenDecl:
+		return docTargetsForGenDecl(d)
+	default:
+		return nil
+	}
+}
+
+func docTargetsForFuncDecl(d *ast.FuncDecl) []docTarget {
+	if d == nil || d.Name == nil || !d.Name.IsExported() {
+		return nil
+	}
+	return []docTarget{{
+		Name:           d.Name.Name,
+		Doc:            d.Doc,
+		Pos:            d.Name.Pos(),
+		PrimaryForDoc3: true,
+	}}
+}
+
+func docTargetsForGenDecl(d *ast.GenDecl) []docTarget {
+	targets := make([]docTarget, 0)
+	for _, spec := range d.Specs {
+		targets = append(targets, docTargetsForSpec(spec, d.Doc)...)
+	}
+	return targets
+}
+
+func docTargetsForSpec(spec ast.Spec, declDoc *ast.CommentGroup) []docTarget {
+	switch s := spec.(type) {
+	case *ast.TypeSpec:
+		return docTargetsForTypeSpec(s, declDoc)
+	case *ast.ValueSpec:
+		return docTargetsForValueSpec(s, declDoc)
+	default:
+		return nil
+	}
+}
+
+func docTargetsForTypeSpec(s *ast.TypeSpec, declDoc *ast.CommentGroup) []docTarget {
+	if s == nil || s.Name == nil || !s.Name.IsExported() {
+		return nil
+	}
+	doc := s.Doc
+	if doc == nil {
+		doc = declDoc
+	}
+	return []docTarget{{
+		Name:           s.Name.Name,
+		Doc:            doc,
+		Pos:            s.Name.Pos(),
+		PrimaryForDoc3: true,
+	}}
+}
+
+func docTargetsForValueSpec(s *ast.ValueSpec, declDoc *ast.CommentGroup) []docTarget {
+	firstExportedIndex := firstExportedNameIndex(s)
+	if firstExportedIndex == -1 {
+		return nil
+	}
+
+	doc := s.Doc
+	if doc == nil {
+		doc = declDoc
+	}
+
+	targets := make([]docTarget, 0)
+	for i, name := range s.Names {
+		if name == nil || !name.IsExported() {
+			continue
+		}
+		targets = append(targets, docTarget{
+			Name:           name.Name,
+			Doc:            doc,
+			Pos:            name.Pos(),
+			PrimaryForDoc3: i == firstExportedIndex,
+		})
+	}
+
+	return targets
+}
+
+func firstExportedNameIndex(s *ast.ValueSpec) int {
+	if s == nil {
+		return -1
+	}
+	for i, name := range s.Names {
+		if name != nil && name.IsExported() {
+			return i
+		}
+	}
+	return -1
 }
 
 func nearestCommentGroupBeforeLine(file *ast.File, fset *token.FileSet, line int) (*ast.CommentGroup, int) {
@@ -133,26 +169,34 @@ func isBlockDocComment(cg *ast.CommentGroup) bool {
 func collectPackageVarNames(files []parsedFile) map[string]struct{} {
 	vars := make(map[string]struct{})
 	for _, pf := range files {
-		for _, decl := range pf.File.Decls {
-			gd, ok := decl.(*ast.GenDecl)
-			if !ok || gd.Tok != token.VAR {
-				continue
-			}
-			for _, spec := range gd.Specs {
-				vs, ok := spec.(*ast.ValueSpec)
-				if !ok {
-					continue
-				}
-				for _, name := range vs.Names {
-					if name == nil || name.Name == "_" {
-						continue
-					}
-					vars[name.Name] = struct{}{}
-				}
-			}
-		}
+		collectPackageVarNamesFromDecls(vars, pf.File.Decls)
 	}
 	return vars
+}
+
+func collectPackageVarNamesFromDecls(vars map[string]struct{}, decls []ast.Decl) {
+	for _, decl := range decls {
+		gd, ok := decl.(*ast.GenDecl)
+		if !ok || gd.Tok != token.VAR {
+			continue
+		}
+		for _, spec := range gd.Specs {
+			collectPackageVarNamesFromSpec(vars, spec)
+		}
+	}
+}
+
+func collectPackageVarNamesFromSpec(vars map[string]struct{}, spec ast.Spec) {
+	vs, ok := spec.(*ast.ValueSpec)
+	if !ok {
+		return
+	}
+	for _, name := range vs.Names {
+		if name == nil || name.Name == "_" {
+			continue
+		}
+		vars[name.Name] = struct{}{}
+	}
 }
 
 func isImmutableExpr(expr ast.Expr) bool {

@@ -8,27 +8,45 @@ import (
 	"github.com/YeiyoNathnael/goulinette/internal/diag"
 )
 
+const (
+	ctx04RuleID                = "CTX-04"
+	ctx04PkgContext            = "context"
+	ctx04FnWithCancel          = "WithCancel"
+	ctx04FnWithTimeout         = "WithTimeout"
+	ctx04FnWithDeadline        = "WithDeadline"
+	ctx04DefaultCancelName     = "cancel"
+	ctx04MsgCancelMustHandled  = "cancel function from derived context must be handled"
+	ctx04MsgCancelOnAllExits   = "derived context cancel function must be called or deferred on all exit paths"
+	ctx04HintCaptureCancel     = "capture cancel function and defer/call it on all paths"
+	ctx04HintDeferCancelPrefix = "defer "
+	ctx04HintDeferCancelSuffix = "() immediately after context.WithCancel/WithTimeout/WithDeadline"
+)
+
 type ctx04Rule struct{}
 
+// NewCTX04 returns the CTX04 rule implementation.
 func NewCTX04() Rule {
 	return ctx04Rule{}
 }
 
+// ID returns the rule identifier.
 func (ctx04Rule) ID() string {
-	return "CTX-04"
+	return ctx04RuleID
 }
 
+// Chapter returns the chapter number for this rule.
 func (ctx04Rule) Chapter() int {
 	return 14
 }
 
-func (ctx04Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
+// Run executes this rule against the provided context.
+func (ctx04Rule) Run(ctx Context) ([]diag.Finding, error) {
 	pkgs, err := loadTypedPackages(ctx.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for _, pkg := range pkgs {
 		for _, file := range pkg.Syntax {
 			for _, decl := range file.Decls {
@@ -84,12 +102,12 @@ func mergeCancelState(thenState, elseState cancelState) cancelState {
 	return out
 }
 
-func analyzeCTX04StmtList(stmts []ast.Stmt, in cancelState, info *types.Info, fset *token.FileSet) (cancelState, []diag.Diagnostic) {
+func analyzeCTX04StmtList(stmts []ast.Stmt, in cancelState, info *types.Info, fset *token.FileSet) (cancelState, []diag.Finding) {
 	state := cloneCancelState(in)
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 
 	for _, stmt := range stmts {
-		var ds []diag.Diagnostic
+		var ds []diag.Finding
 		state, ds = analyzeCTX04Stmt(stmt, state, info, fset)
 		diagnostics = append(diagnostics, ds...)
 	}
@@ -97,123 +115,139 @@ func analyzeCTX04StmtList(stmts []ast.Stmt, in cancelState, info *types.Info, fs
 	return state, diagnostics
 }
 
-func analyzeCTX04Stmt(stmt ast.Stmt, in cancelState, info *types.Info, fset *token.FileSet) (cancelState, []diag.Diagnostic) {
+func analyzeCTX04Stmt(stmt ast.Stmt, in cancelState, info *types.Info, fset *token.FileSet) (cancelState, []diag.Finding) {
 	state := cloneCancelState(in)
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 
-	switch s := stmt.(type) {
+	switch stmtNode := stmt.(type) {
 	case *ast.BlockStmt:
-		return analyzeCTX04StmtList(s.List, state, info, fset)
+		return analyzeCTX04StmtList(stmtNode.List, state, info, fset)
 
 	case *ast.AssignStmt:
-		diagnostics = append(diagnostics, ctx04TrackCreationFromAssign(s, state, info, fset)...)
-		if ctx04MarksCancelHandledByDirectCall(s.Rhs, state, info) {
+		diagnostics = append(diagnostics, ctx04TrackCreationFromAssign(stmtNode, state, info, fset)...)
+		if ctx04MarksCancelHandledByDirectCall(stmtNode.Rhs, state, info) {
 			// no-op: state is updated in helper
 		}
 		return state, diagnostics
 
 	case *ast.DeclStmt:
-		gd, ok := s.Decl.(*ast.GenDecl)
-		if !ok || gd.Tok != token.VAR {
-			return state, diagnostics
-		}
-		for _, spec := range gd.Specs {
-			vs, ok := spec.(*ast.ValueSpec)
-			if !ok {
-				continue
-			}
-			for i, rhs := range vs.Values {
-				call, ok := rhs.(*ast.CallExpr)
-				if !ok || !isContextDerivationCall(call, info) {
-					continue
-				}
-				if i >= len(vs.Names)-1 {
-					continue
-				}
-				cancelName := vs.Names[i+1]
-				if cancelName == nil {
-					continue
-				}
-				if cancelName.Name == "_" {
-					pos := fset.Position(cancelName.Pos())
-					diagnostics = append(diagnostics, diag.Diagnostic{
-						RuleID:   "CTX-04",
-						Severity: diag.SeverityError,
-						Message:  "cancel function from derived context must be handled",
-						Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-						Hint:     "capture cancel function and defer/call it on all paths",
-					})
-					continue
-				}
-				if obj, ok := info.Defs[cancelName].(*types.Var); ok {
-					state[obj] = false
-				}
-			}
-		}
-		return state, diagnostics
+		return state, append(diagnostics, ctx04DeclStmtDiagnostics(stmtNode, state, info, fset)...)
 
 	case *ast.ExprStmt:
-		if call, ok := s.X.(*ast.CallExpr); ok {
-			ctx04MarkCancelHandledByCall(call, state, info, false)
+		if call, ok := stmtNode.X.(*ast.CallExpr); ok {
+			_ = ctx04MarkCancelHandledByCall(call, state, info, false)
 		}
 		return state, diagnostics
 
 	case *ast.DeferStmt:
-		ctx04MarkCancelHandledByCall(s.Call, state, info, true)
+		_ = ctx04MarkCancelHandledByCall(stmtNode.Call, state, info, true)
 		return state, diagnostics
 
 	case *ast.GoStmt:
 		return state, diagnostics
 
 	case *ast.ReturnStmt:
-		for cancelVar, handled := range state {
-			if handled {
-				continue
-			}
-			pos := fset.Position(s.Return)
-			name := cancelVar.Name()
-			if name == "" {
-				name = "cancel"
-			}
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "CTX-04",
-				Severity: diag.SeverityError,
-				Message:  "derived context cancel function must be called or deferred on all exit paths",
-				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-				Hint:     "defer " + name + "() immediately after context.WithCancel/WithTimeout/WithDeadline",
-			})
-		}
-		return state, diagnostics
+		return state, append(diagnostics, ctx04ReturnStmtDiagnostics(stmtNode, state, fset)...)
 
 	case *ast.IfStmt:
-		if s.Init != nil {
-			var initDiags []diag.Diagnostic
-			state, initDiags = analyzeCTX04Stmt(s.Init, state, info, fset)
-			diagnostics = append(diagnostics, initDiags...)
-		}
-
-		thenState, thenDiags := analyzeCTX04StmtList(s.Body.List, cloneCancelState(state), info, fset)
-		diagnostics = append(diagnostics, thenDiags...)
-
-		elseState := cloneCancelState(state)
-		if s.Else != nil {
-			var elseDiags []diag.Diagnostic
-			elseState, elseDiags = analyzeCTX04Stmt(s.Else, elseState, info, fset)
-			diagnostics = append(diagnostics, elseDiags...)
-		}
-
-		return mergeCancelState(thenState, elseState), diagnostics
+		merged, ds := analyzeCTX04IfStmt(stmtNode, state, info, fset)
+		return merged, append(diagnostics, ds...)
+	default:
+		return state, diagnostics
 	}
-
-	return state, diagnostics
 }
 
-func ctx04TrackCreationFromAssign(as *ast.AssignStmt, state cancelState, info *types.Info, fset *token.FileSet) []diag.Diagnostic {
+func ctx04DeclStmtDiagnostics(stmt *ast.DeclStmt, state cancelState, info *types.Info, fset *token.FileSet) []diag.Finding {
+	gd, ok := stmt.Decl.(*ast.GenDecl)
+	if !ok || gd.Tok != token.VAR {
+		return nil
+	}
+
+	diagnostics := make([]diag.Finding, 0)
+	for _, spec := range gd.Specs {
+		vs, ok := spec.(*ast.ValueSpec)
+		if !ok {
+			continue
+		}
+		for i, rhs := range vs.Values {
+			call, ok := rhs.(*ast.CallExpr)
+			if !ok || !isContextDerivationCall(call, info) || i >= len(vs.Names)-1 {
+				continue
+			}
+			cancelName := vs.Names[i+1]
+			if cancelName == nil {
+				continue
+			}
+			if cancelName.Name == "_" {
+				pos := fset.Position(cancelName.Pos())
+				diagnostics = append(diagnostics, diag.Finding{
+					RuleID:   ctx04RuleID,
+					Severity: diag.SeverityError,
+					Message:  ctx04MsgCancelMustHandled,
+					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
+					Hint:     ctx04HintCaptureCancel,
+				})
+				continue
+			}
+			if obj, ok := info.Defs[cancelName].(*types.Var); ok {
+				state[obj] = false
+			}
+		}
+	}
+	return diagnostics
+}
+
+func ctx04ReturnStmtDiagnostics(stmt *ast.ReturnStmt, state cancelState, fset *token.FileSet) []diag.Finding {
+	diagnostics := make([]diag.Finding, 0)
+	for cancelVar, handled := range state {
+		if handled {
+			continue
+		}
+		pos := fset.Position(stmt.Return)
+		name := cancelVar.Name()
+		if name == "" {
+			name = ctx04DefaultCancelName
+		}
+		diagnostics = append(diagnostics, diag.Finding{
+			RuleID:   ctx04RuleID,
+			Severity: diag.SeverityError,
+			Message:  ctx04MsgCancelOnAllExits,
+			Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
+			Hint:     ctx04HintDeferCancelPrefix + name + ctx04HintDeferCancelSuffix,
+		})
+	}
+	return diagnostics
+}
+
+func analyzeCTX04IfStmt(stmt *ast.IfStmt, state cancelState, info *types.Info, fset *token.FileSet) (cancelState, []diag.Finding) {
+	diagnostics := make([]diag.Finding, 0)
+	currentState := cloneCancelState(state)
+
+	if stmt.Init != nil {
+		var initDiags []diag.Finding
+		currentState, initDiags = analyzeCTX04Stmt(stmt.Init, currentState, info, fset)
+		diagnostics = append(diagnostics, initDiags...)
+	}
+
+	thenState, thenDiags := analyzeCTX04StmtList(stmt.Body.List, cloneCancelState(currentState), info, fset)
+	diagnostics = append(diagnostics, thenDiags...)
+
+	elseState := cloneCancelState(currentState)
+	if stmt.Else != nil {
+		var elseDiags []diag.Finding
+		elseState, elseDiags = analyzeCTX04Stmt(stmt.Else, elseState, info, fset)
+		diagnostics = append(diagnostics, elseDiags...)
+	}
+
+	return mergeCancelState(thenState, elseState), diagnostics
+}
+
+func ctx04TrackCreationFromAssign(as *ast.AssignStmt, state cancelState, info *types.Info, fset *token.FileSet) []diag.Finding {
 	if as == nil || info == nil {
 		return nil
 	}
 
-	diagnostics := make([]diag.Diagnostic, 0)
+	diagnostics := make([]diag.Finding, 0)
 	for i, rhs := range as.Rhs {
 		call, ok := rhs.(*ast.CallExpr)
 		if !ok || !isContextDerivationCall(call, info) {
@@ -231,12 +265,12 @@ func ctx04TrackCreationFromAssign(as *ast.AssignStmt, state cancelState, info *t
 		}
 		if cancelIdent.Name == "_" {
 			pos := fset.Position(cancelIdent.Pos())
-			diagnostics = append(diagnostics, diag.Diagnostic{
-				RuleID:   "CTX-04",
+			diagnostics = append(diagnostics, diag.Finding{
+				RuleID:   ctx04RuleID,
 				Severity: diag.SeverityError,
-				Message:  "cancel function from derived context must be handled",
+				Message:  ctx04MsgCancelMustHandled,
 				Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-				Hint:     "capture cancel function and defer/call it on all paths",
+				Hint:     ctx04HintCaptureCancel,
 			})
 			continue
 		}
@@ -255,8 +289,8 @@ func ctx04TrackCreationFromAssign(as *ast.AssignStmt, state cancelState, info *t
 	return diagnostics
 }
 
-func ctx04UnhandledAtExit(fset *token.FileSet, posToken token.Pos, state cancelState) []diag.Diagnostic {
-	diagnostics := make([]diag.Diagnostic, 0)
+func ctx04UnhandledAtExit(fset *token.FileSet, posToken token.Pos, state cancelState) []diag.Finding {
+	diagnostics := make([]diag.Finding, 0)
 	for cancelVar, handled := range state {
 		if handled {
 			continue
@@ -264,21 +298,21 @@ func ctx04UnhandledAtExit(fset *token.FileSet, posToken token.Pos, state cancelS
 		pos := fset.Position(posToken)
 		name := cancelVar.Name()
 		if name == "" {
-			name = "cancel"
+			name = ctx04DefaultCancelName
 		}
-		diagnostics = append(diagnostics, diag.Diagnostic{
-			RuleID:   "CTX-04",
+		diagnostics = append(diagnostics, diag.Finding{
+			RuleID:   ctx04RuleID,
 			Severity: diag.SeverityError,
-			Message:  "derived context cancel function must be called or deferred on all exit paths",
+			Message:  ctx04MsgCancelOnAllExits,
 			Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
-			Hint:     "defer " + name + "() immediately after context.WithCancel/WithTimeout/WithDeadline",
+			Hint:     ctx04HintDeferCancelPrefix + name + ctx04HintDeferCancelSuffix,
 		})
 	}
 	return diagnostics
 }
 
 func ctx04MarksCancelHandledByDirectCall(exprs []ast.Expr, state cancelState, info *types.Info) bool {
-	updated := false
+	var updated bool
 	for _, expr := range exprs {
 		call, ok := expr.(*ast.CallExpr)
 		if !ok {
@@ -296,7 +330,7 @@ func ctx04MarkCancelHandledByCall(call *ast.CallExpr, state cancelState, info *t
 		return false
 	}
 
-	updated := false
+	var updated bool
 
 	if id, ok := call.Fun.(*ast.Ident); ok {
 		if obj, ok := info.ObjectOf(id).(*types.Var); ok {
@@ -336,11 +370,11 @@ func isContextDerivationCall(call *ast.CallExpr, info *types.Info) bool {
 	if obj == nil || obj.Pkg() == nil {
 		return false
 	}
-	if obj.Pkg().Path() != "context" {
+	if obj.Pkg().Path() != ctx04PkgContext {
 		return false
 	}
 	name := obj.Name()
-	return name == "WithCancel" || name == "WithTimeout" || name == "WithDeadline"
+	return name == ctx04FnWithCancel || name == ctx04FnWithTimeout || name == ctx04FnWithDeadline
 }
 
 func calledFunctionObject(call *ast.CallExpr, info *types.Info) *types.Func {
@@ -357,6 +391,8 @@ func calledFunctionObject(call *ast.CallExpr, info *types.Info) *types.Func {
 		if obj, ok := info.Uses[fn].(*types.Func); ok {
 			return obj
 		}
+	default:
+		// no-op
 	}
 
 	return nil

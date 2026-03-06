@@ -12,37 +12,40 @@ import (
 	"github.com/YeiyoNathnael/goulinette/internal/rules"
 )
 
-type App struct {
-	cfg config.Config
+// Runner documents this exported type.
+type Runner struct {
+	cfg config.Settings
 }
 
-func New(cfg config.Config) App {
-	return App{cfg: cfg}
+// New documents this exported function.
+func New(cfg config.Settings) Runner {
+	return Runner{cfg: cfg}
 }
 
-func (a App) Run(_ context.Context) int {
+// Run documents this exported method.
+func (r Runner) Run(_ context.Context) int {
 	result := diag.Result{}
 	rules.ResetCaches()
 
-	files, err := discovery.GoFiles(a.cfg.Root)
+	files, err := discovery.GoFiles(r.cfg.Root)
 	if err != nil {
 		result.RuntimeErrs = append(result.RuntimeErrs, err.Error())
-		report.Print(os.Stdout, a.cfg.Format, result)
-		return result.ExitCode(a.cfg.WarningsAsErrors)
+		report.Print(os.Stdout, r.cfg.Format, result)
+		return result.ExitCode(r.cfg.WarningsAsErrors)
 	}
 
 	ruleCtx := rules.Context{
-		Root:        a.cfg.Root,
+		Root:        r.cfg.Root,
 		Files:       files,
-		StrictTools: a.cfg.StrictTools,
+		StrictTools: r.cfg.StrictTools,
 	}
 
-	includeRules := a.cfg.Rules
+	includeRules := r.cfg.Rules
 	if includeRules == nil {
-		includeRules = rules.RulesForLevel(a.cfg.Level)
+		includeRules = rules.IDsForLevel(r.cfg.Level)
 	}
 
-	selected := rules.Select(rules.Registry(), a.cfg.Chapters, includeRules, a.cfg.DisableRules)
+	selected := rules.Select(rules.Registry(), r.cfg.Chapters, includeRules, r.cfg.DisableRules)
 	for _, rule := range selected {
 		ds, runErr := rule.Run(ruleCtx)
 		if runErr != nil {
@@ -53,6 +56,6 @@ func (a App) Run(_ context.Context) int {
 	}
 
 	diag.Sort(result.Diagnostics)
-	report.Print(os.Stdout, a.cfg.Format, result)
-	return result.ExitCode(a.cfg.WarningsAsErrors)
+	report.Print(os.Stdout, r.cfg.Format, result)
+	return result.ExitCode(r.cfg.WarningsAsErrors)
 }

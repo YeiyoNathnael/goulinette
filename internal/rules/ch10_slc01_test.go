@@ -6,6 +6,9 @@ import (
 	"testing"
 )
 
+const slc01TestFilePerm = 0o644
+
+// TestSLC01 documents this exported function.
 func TestSLC01(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -57,9 +60,10 @@ func f() {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Helper()
 			dir := t.TempDir()
 			file := filepath.Join(dir, "sample.go")
-			if err := os.WriteFile(file, []byte(tc.source), 0o644); err != nil {
+			if err := os.WriteFile(file, []byte(tc.source), slc01TestFilePerm); err != nil {
 				t.Fatalf("write sample: %v", err)
 			}
 

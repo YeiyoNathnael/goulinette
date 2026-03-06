@@ -5,6 +5,7 @@ import "strings"
 func Registry() []Rule {
 	return []Rule{
 		NewFMT01(),
+		NewFMT02(),
 	}
 }
 

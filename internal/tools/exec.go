@@ -11,6 +11,10 @@ import (
 )
 
 func Run(ctx context.Context, timeout time.Duration, name string, args ...string) (string, error) {
+	return RunInDir(ctx, timeout, "", name, args...)
+}
+
+func RunInDir(ctx context.Context, timeout time.Duration, dir string, name string, args ...string) (string, error) {
 	if _, err := exec.LookPath(name); err != nil {
 		return "", fmt.Errorf("tool %q not found in PATH", name)
 	}
@@ -19,6 +23,9 @@ func Run(ctx context.Context, timeout time.Duration, name string, args ...string
 	defer cancel()
 
 	cmd := exec.CommandContext(cctx, name, args...)
+	if dir != "" {
+		cmd.Dir = dir
+	}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout

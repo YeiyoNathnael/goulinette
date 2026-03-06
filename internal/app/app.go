@@ -22,6 +22,7 @@ func New(cfg config.Config) App {
 
 func (a App) Run(_ context.Context) int {
 	result := diag.Result{}
+	rules.ResetCaches()
 
 	files, err := discovery.GoFiles(a.cfg.Root)
 	if err != nil {

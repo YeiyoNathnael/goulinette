@@ -5,8 +5,9 @@ import (
 	"go/token"
 	"go/types"
 
-	"golang.org/x/tools/go/packages"
 	"goulinette/internal/diag"
+
+	"golang.org/x/tools/go/packages"
 )
 
 type cer02Rule struct{}

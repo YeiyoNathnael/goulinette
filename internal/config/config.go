@@ -10,6 +10,7 @@ import (
 type Config struct {
 	Root             string
 	Format           string
+	Level            int
 	Chapters         map[int]struct{}
 	Rules            map[string]struct{}
 	DisableRules     map[string]struct{}
@@ -29,6 +30,7 @@ func ParseFlags(args []string) (Config, error) {
 	cfg := Config{}
 	fs.StringVar(&cfg.Root, "root", ".", "root directory to scan")
 	fs.StringVar(&cfg.Format, "format", "text", "output format: text|json")
+	fs.IntVar(&cfg.Level, "level", 1, "strictness level: 0 (bugs) to 3 (maximum strictness)")
 	fs.StringVar(&chapterCSV, "chapter", "", "comma-separated chapter numbers")
 	fs.StringVar(&ruleCSV, "rule", "", "comma-separated rule IDs")
 	fs.StringVar(&disableCSV, "disable", "", "comma-separated rule IDs to disable")
@@ -43,6 +45,9 @@ func ParseFlags(args []string) (Config, error) {
 
 	if cfg.Format != "text" && cfg.Format != "json" {
 		return Config{}, fmt.Errorf("invalid --format %q (expected text or json)", cfg.Format)
+	}
+	if cfg.Level < 0 || cfg.Level > 3 {
+		return Config{}, fmt.Errorf("invalid --level %d (expected 0..3)", cfg.Level)
 	}
 
 	chapters, err := parseChapters(chapterCSV)

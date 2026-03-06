@@ -37,7 +37,12 @@ func (a App) Run(_ context.Context) int {
 		StrictTools: a.cfg.StrictTools,
 	}
 
-	selected := rules.Select(rules.Registry(), a.cfg.Chapters, a.cfg.Rules, a.cfg.DisableRules)
+	includeRules := a.cfg.Rules
+	if includeRules == nil {
+		includeRules = rules.RulesForLevel(a.cfg.Level)
+	}
+
+	selected := rules.Select(rules.Registry(), a.cfg.Chapters, includeRules, a.cfg.DisableRules)
 	for _, rule := range selected {
 		ds, runErr := rule.Run(ruleCtx)
 		if runErr != nil {

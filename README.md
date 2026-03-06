@@ -39,13 +39,22 @@ go build -o goulinette ./cmd/goulinette
 ./goulinette --root . --chapter 14
 ```
 
-## 5) Run a subset of rules
+## 5) Use strictness levels
+
+```bash
+./goulinette --root . --level 0   # bugs-only baseline
+./goulinette --root . --level 1   # idiomatic default
+./goulinette --root . --level 2   # opinionated
+./goulinette --root . --level 3   # maximum strictness
+```
+
+## 6) Run a subset of rules
 
 ```bash
 ./goulinette --root . --rule CTX-01,CTX-04
 ```
 
-## 6) Disable specific rules
+## 7) Disable specific rules
 
 ```bash
 ./goulinette --root . --disable TST-03
@@ -58,6 +67,7 @@ go build -o goulinette ./cmd/goulinette
 ```text
 --root string              root directory to scan (default ".")
 --format string            output format: text|json (default "text")
+--level int                strictness level: 0..3 (default 1)
 --chapter string           comma-separated chapter numbers
 --rule string              comma-separated rule IDs
 --disable string           comma-separated rule IDs to disable
@@ -68,8 +78,18 @@ go build -o goulinette ./cmd/goulinette
 ```
 
 Notes:
+- `--level` defines the default enabled rule set (cumulative from level 0 to chosen level).
+- `--rule` overrides level-based selection (explicit include list).
+- `--chapter` and `--disable` are applied on top of the active include set.
 - `--max-workers` is parsed and carried in config for future/extended scheduling controls.
 - `--timeout` applies to tool invocations run through the internal tools wrapper.
+
+### Strictness levels
+
+- `0` (non-negotiable): compiler-invisible/runtime-risk checks (for example context misuse, copy-sensitive sync patterns, channel close ownership, comma-ok pitfalls).
+- `1` (strict idiomatic): strong Go conventions and API hygiene checks; this is the default.
+- `2` (opinionated): team-style preferences and stricter readability conventions.
+- `3` (maximum strictness): pedagogical/library-grade structural constraints.
 
 ---
 

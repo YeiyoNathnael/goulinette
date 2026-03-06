@@ -38,6 +38,7 @@ func Registry() []Rule {
 		NewTYP05(),
 		NewTYP06(),
 		NewTYP07(),
+		NewSTR01(),
 	}
 }
 

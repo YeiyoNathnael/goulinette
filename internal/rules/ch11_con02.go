@@ -44,7 +44,7 @@ func (con02Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 				pos := pkg.Fset.Position(goStmt.Go)
 				diagnostics = append(diagnostics, diag.Diagnostic{
 					RuleID:   "CON-02",
-					Severity: diag.SeverityWarning,
+					Severity: diag.SeverityError,
 					Message:  "goroutine has no obvious cancellation or exit path",
 					Pos:      diag.Position{File: pos.Filename, Line: pos.Line, Col: pos.Column},
 					Hint:     "pass context.Context and/or use select with ctx.Done() or an explicit done channel",

@@ -77,11 +77,10 @@ func (err03Rule) Run(ctx Context) ([]diag.Diagnostic, error) {
 						continue
 					}
 
-					severity := diag.SeverityError
+					severity := diag.SeverityWarning
 					message := "when returning a non-nil error, all other return values must be zero values"
 					hint := "return zero values in all non-error positions on error paths"
 					if errState == returnedErrorUnknown {
-						severity = diag.SeverityWarning
 						message = "possible non-zero values returned alongside a potentially non-nil error"
 						hint = "if error can be non-nil here, ensure all other return values are zero"
 					}

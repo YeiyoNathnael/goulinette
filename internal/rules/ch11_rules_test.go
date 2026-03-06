@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"goulinette/internal/diag"
 )
 
 func writeModuleFile(t *testing.T, dir, name, content string) string {
@@ -107,6 +109,9 @@ func f(ctx context.Context) {
 			if len(diags) != tc.wantCount {
 				t.Fatalf("expected %d CON-02 diagnostics, got %d", tc.wantCount, len(diags))
 			}
+			if tc.wantCount > 0 && diags[0].Severity != diag.SeverityError {
+				t.Fatalf("expected CON-02 severity error, got %s", diags[0].Severity)
+			}
 		})
 	}
 }
@@ -164,6 +169,9 @@ func f(ch chan int) {
 			}
 			if len(diags) < tc.wantAtLeast {
 				t.Fatalf("expected at least %d CON-03 diagnostics, got %d", tc.wantAtLeast, len(diags))
+			}
+			if tc.wantAtLeast > 0 && len(diags) > 0 && diags[0].Severity != diag.SeverityError {
+				t.Fatalf("expected CON-03 severity error, got %s", diags[0].Severity)
 			}
 		})
 	}

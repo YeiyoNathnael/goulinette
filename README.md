@@ -3,8 +3,7 @@
 ![CI](https://github.com/YeiyoNathnael/goulinette/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/github/license/YeiyoNathnael/goulinette)
 ![Release](https://img.shields.io/github/v/release/YeiyoNathnael/goulinette)
-[![Coverage Status](https://coveralls.io/repos/github/YeiyoNathnael/goulinette/badge.svg?branch=main)](https://coveralls.io/github/YeiyoNathnael/goulinette)
-
+[![codecov](https://codecov.io/gh/YeiyoNathnael/goulinette/branch/main/graph/badge.svg)](https://codecov.io/gh/YeiyoNathnael/goulinette)
 # Goulinette (Go Static Analyzer)
 
 Goulinette is a rule-based static analyzer for Go projects, built to enforce a strict, chaptered requirements spec.

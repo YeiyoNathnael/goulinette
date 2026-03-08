@@ -24,8 +24,13 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      - name: Test (with race detector)
-        run: go test -race -count=1 ./...
+      - name: Run tests with coverage
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.out
 
       - name: Install staticcheck
         run: go install honnef.co/go/tools/cmd/staticcheck@latest
@@ -37,3 +42,4 @@ jobs:
           count=$(jq '.diagnostics | length' findings.json)
           echo "goulinette found $count diagnostics"
           test "$count" -eq 0
+      

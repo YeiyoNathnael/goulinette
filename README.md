@@ -4,278 +4,140 @@
 ![License](https://img.shields.io/github/license/YeiyoNathnael/goulinette)
 ![Release](https://img.shields.io/github/v/release/YeiyoNathnael/goulinette)
 [![codecov](https://codecov.io/gh/YeiyoNathnael/goulinette/branch/main/graph/badge.svg)](https://codecov.io/gh/YeiyoNathnael/goulinette)
-# Goulinette (Go Static Analyzer)
+![License](https://img.shields.io/github/license/YeiyoNathnael/goulinette)
 
-Goulinette is a rule-based static analyzer for Go projects, built to enforce a strict, chaptered requirements spec.
-It scans a target repository, runs selected rules, emits diagnostics in text or JSON, and returns CI-friendly exit codes.
+# Goulinette
 
-## What it does
+Goulinette is a static analyzer for Go. It checks a repository against 73 rules covering formatting, naming, error handling, concurrency, context use, testing and project structure, then reports diagnostics as text or JSON with exit codes suited to CI.
 
-- Enforces **73 rules** across formatting, naming, structure, context, concurrency, testing, and more.
-- Supports per-chapter and per-rule selection/disable.
-- Produces deterministic diagnostics sorted by file/line/column/rule.
-- Integrates external tools where required (for example `go vet`, optionally `staticcheck`).
-- Uses process-local caching to avoid repeated AST/type-load work across rules in one run.
+## Features
 
----
+- 73 rules grouped into 19 chapters
+- Four strictness levels
+- Selection by chapter or rule, with per-rule exclusions
+- Inline suppression with `//goulinette:ignore`
+- Rule explanations from the command line
+- Deterministic output sorted by file, line, column and rule
+- Concurrent rule execution with a configurable worker pool
+- Integration with `go vet` and, when installed, `staticcheck`
 
-## Quick start
+## Installation
 
-## 1) Build
+Requires Go 1.24 or later.
 
 ```bash
+go install github.com/YeiyoNathnael/goulinette/cmd/goulinette@latest
+```
+
+To build from source:
+
+```bash
+git clone https://github.com/YeiyoNathnael/goulinette.git
+cd goulinette
 go build -o goulinette ./cmd/goulinette
 ```
 
-## 2) Scan current repo
+## Usage
 
 ```bash
-./goulinette --root .
+# Scan the current directory
+goulinette
+
+# Scan another repository
+goulinette --root /path/to/repo
+
+# Produce JSON output
+goulinette --format json
+
+# Run one chapter
+goulinette --chapter 14
+
+# Run specific rules
+goulinette --rule CTX-01,CTX-04
+
+# Exclude a rule
+goulinette --disable TST-03
+
+# Explain a rule
+goulinette --explain CTX-01
 ```
 
-## 3) JSON output for CI
+Running `goulinette` with no flags is equivalent to:
 
 ```bash
-./goulinette --root . --format json
+goulinette --root . --format text --level 1
 ```
 
-## 4) Run only one chapter
+## Command-line reference
 
-```bash
-./goulinette --root . --chapter 14
-```
+| Flag | Default | Description |
+|---|---|---|
+| `--root` | `.` | Directory to scan |
+| `--format` | `text` | Output format: `text` or `json` |
+| `--level` | `1` | Strictness level, from 0 to 3 |
+| `--chapter` | | Comma-separated chapter numbers |
+| `--rule` | | Comma-separated rule IDs |
+| `--disable` | | Comma-separated rule IDs to exclude |
+| `--warnings-as-errors` | `false` | Treats warnings as errors |
+| `--strict-tools` | `false` | Fails when a required external tool is missing |
+| `--max-workers` | `4` | Maximum concurrent rule workers |
+| `--timeout` | `2m` | Timeout for external tools |
+| `--version` | | Prints the version and exits |
+| `--explain` | | Prints the rationale for a rule ID, or for `all`, and exits |
 
-## 5) Use strictness levels
+Rule selection is applied in this order:
 
-```bash
-./goulinette --root . --level 0   # bugs-only baseline
-./goulinette --root . --level 1   # idiomatic default
-./goulinette --root . --level 2   # opinionated
-./goulinette --root . --level 3   # maximum strictness
-```
+1. `--level` sets the default rule set.
+2. `--rule` replaces that set with an explicit list.
+3. `--chapter` filters the active rules.
+4. `--disable` removes rules.
 
-## 6) Run a subset of rules
+## Strictness levels
 
-```bash
-./goulinette --root . --rule CTX-01,CTX-04
-```
+Levels are cumulative.
 
-## 7) Disable specific rules
+| Level | Name | Scope |
+|---:|---|---|
+| 0 | Non-negotiable | Runtime risks such as context misuse, copied sync types and unsafe channel closes |
+| 1 | Strict idiomatic | Go conventions and API hygiene. This is the default |
+| 2 | Opinionated | Team style and readability conventions |
+| 3 | Maximum strictness | Structural constraints for libraries and teaching |
 
-```bash
-./goulinette --root . --disable TST-03
-```
+## Rules
 
-## 8) Print the version
+| Chapter | Category | Rules |
+|---:|---|---|
+| 1 | Formatting and tooling | `FMT-01` to `FMT-03` |
+| 2 | Naming conventions | `NAM-01` to `NAM-07` |
+| 3 | Variable declarations | `VAR-01` to `VAR-04` |
+| 4 | Control structures | `CTL-01` to `CTL-04` |
+| 5 | Functions and return values | `FUN-01` to `FUN-04` |
+| 6 | Error handling | `ERR-01` to `ERR-08` |
+| 7 | Types, interfaces and pointers | `TYP-01` to `TYP-07` |
+| 8 | Methods and structs | `STR-01` to `STR-04` |
+| 9 | Packages and documentation | `DOC-01` to `DOC-05` |
+| 10 | Slices and collections | `SLC-01` |
+| 11 | Concurrency | `CON-01` to `CON-03` |
+| 12 | Custom errors | `CER-01` to `CER-03` |
+| 13 | Structural limits | `LIM-01` to `LIM-04` |
+| 14 | Context handling | `CTX-01` to `CTX-04` |
+| 15 | Import organization | `IMP-01` to `IMP-03` |
+| 16 | Resource management | `RES-01`, `RES-02` |
+| 17 | Concurrency safety | `SAF-01`, `SAF-02` |
+| 18 | Magic values | `MAG-01`, `MAG-02` |
+| 19 | Testing | `TST-01` to `TST-03` |
 
-```bash
-./goulinette --version
-# goulinette dev
-```
+The full specification is in [`goulinette_requirements.md`](goulinette_requirements.md).
 
-## 9) Explain a rule
+## Output
 
-```bash
-./goulinette --explain CTX-01
-# CTX-01
-#
-# context.Context must be the first parameter of any function that accepts
-# one. This is a hard Go convention. Fix: move ctx to position 0.
-```
-
-Print rationale for every rule at once:
-
-```bash
-./goulinette --explain all
-```
-
-## 10) Suppress a specific finding inline
-
-Add a `//goulinette:ignore` directive on the same line as, or on the
-line immediately preceding, the offending code:
-
-```go
-// Suppress one rule for this line
-x := doThing() //goulinette:ignore ERR-01
-
-// Suppress multiple rules
-//goulinette:ignore MAG-02 NAM-07
-const appName = "myapp"
-
-// Suppress all rules for the next line
-//goulinette:ignore
-blockingLegacyCall()
-```
-
-Rule IDs in the directive are case-insensitive.
-
----
-
-## How invocation works (clear behavior)
-
-### Running `./goulinette` with no flags
-
-```bash
-./goulinette
-```
-
-This is equivalent to:
-
-```bash
-./goulinette --root . --format text --level 1
-```
-
-Behavior:
-- Scans the current directory recursively for Go files.
-- Runs the default rule set for level `1`.
-- Prints human-readable colored text diagnostics.
-- Returns exit code `0`, `1`, or `2` (see Exit codes).
-
-### `--root` behavior
-
-- `--root .`: scan current directory.
-- `--root /path/to/repo`: scan that repository/path instead.
-- Discovery skips common non-source folders such as `.git`, `vendor`, and `node_modules`.
-
-Example:
-
-```bash
-./goulinette --root /home/user/myservice
-```
-
-### What each flag does
-
-- `--format text|json`
-  - `text`: colored human-readable output.
-  - `json`: machine-readable output for CI/reporting.
-
-- `--level 0..3`
-  - Selects the default strictness tier.
-  - Default is `1`.
-
-- `--chapter 1,2,14`
-  - Filters active rules to the listed chapters.
-
-- `--rule CTX-01,CTX-04`
-  - Explicit rule include list.
-  - Takes precedence over level-based selection.
-
-- `--disable RULE1,RULE2`
-  - Removes specific rules from the active selection after includes/filters.
-
-- `--warnings-as-errors`
-  - Treats warnings as failing diagnostics (affects exit behavior).
-
-- `--strict-tools`
-  - Fails hard when required external tools are missing instead of soft-degrading.
-
-- `--version`
-  - Prints the goulinette version string and exits.
-  - The default value is `dev`; release builds set this via `-ldflags`.
-
-- `--explain RULE-ID|all`
-  - Prints the rationale for a single rule (e.g. `--explain CTX-01`) and exits.
-  - Use `--explain all` to print rationale for every rule in order.
-
-- `--max-workers N`
-  - Number of goroutines used to execute rules concurrently (default 4).
-  - Rules are dispatched over a buffered work channel; the pool is bounded by `N`.
-
-- `--timeout 2m`
-  - Timeout budget for external tool invocations.
-
-### Flag precedence (important)
-
-Selection is applied in this order:
-1. Start from `--level` defaults.
-2. If `--rule` is provided, use that explicit include set instead.
-3. Apply `--chapter` filter.
-4. Apply `--disable` exclusions.
-
----
-
-## CLI reference
-
-```text
---root string              root directory to scan (default ".")
---format string            output format: text|json (default "text")
---level int                strictness level: 0..3 (default 1)
---chapter string           comma-separated chapter numbers
---rule string              comma-separated rule IDs
---disable string           comma-separated rule IDs to disable
---warnings-as-errors       treat warnings as errors
---strict-tools             fail when required external tools are missing
---max-workers int          max concurrent rule workers (default 4)
---timeout duration         command timeout (default 2m)
---version                  print version and exit
---explain string           print rule rationale and exit (rule ID or "all")
-```
-
-Notes:
-- `--level` defines the default enabled rule set (cumulative from level 0 to chosen level).
-- `--rule` overrides level-based selection (explicit include list).
-- `--chapter` and `--disable` are applied on top of the active include set.
-- `--max-workers` controls the size of the concurrent worker pool used during rule execution.
-- `--timeout` applies to tool invocations run through the internal tools wrapper.
-- `--version` and `--explain` are query flags; they print and exit before any analysis runs.
-
-### Strictness levels
-
-- `0` (non-negotiable): compiler-invisible/runtime-risk checks (for example context misuse, copy-sensitive sync patterns, channel close ownership, comma-ok pitfalls).
-- `1` (strict idiomatic): strong Go conventions and API hygiene checks; this is the default.
-- `2` (opinionated): team-style preferences and stricter readability conventions.
-- `3` (maximum strictness): pedagogical/library-grade structural constraints.
-
----
-
-## Exit codes
-
-- `0`: no errors (and no warnings if `--warnings-as-errors` is used)
-- `1`: at least one error diagnostic, or warning promoted to error
-- `2`: runtime/tooling failure (for example parse/type-load/tool execution failure)
-
----
-
-## Output formats
-
-## Text (default)
+### Text
 
 ```text
 path/to/file.go:12:5: error [CTX-03] nil must not be passed as context.Context
-runtime: FMT-02: tool "go" not found in PATH
 ```
 
-Text output is ANSI-colorized for readability:
-- **Severity**: `error` in **bold red**, `warning` in yellow.
-- **Broken rule ID**: highlighted with an actual color (not just bold).
-- **File location**: rendered in dim gray to reduce visual noise.
-
-Fixed chapter color mapping (not runtime-random):
-- Rule IDs are color-grouped by chapter prefix and always use the same preselected color.
-- Colors are enforced in code and do not change between runs.
-
-Chapter palette (ANSI 256 colors):
-- Chapter 1 (`FMT-*`) → `39`
-- Chapter 2 (`NAM-*`) → `208`
-- Chapter 3 (`VAR-*`) → `45`
-- Chapter 4 (`CTL-*`) → `171`
-- Chapter 5 (`FUN-*`) → `220`
-- Chapter 6 (`ERR-*`) → `196`
-- Chapter 7 (`TYP-*`) → `51`
-- Chapter 8 (`STR-*`) → `99`
-- Chapter 9 (`DOC-*`) → `34`
-- Chapter 10 (`SLC-*`) → `214`
-- Chapter 11 (`CON-*`) → `129`
-- Chapter 12 (`CER-*`) → `44`
-- Chapter 13 (`LIM-*`) → `177`
-- Chapter 14 (`CTX-*`) → `81`
-- Chapter 15 (`IMP-*`) → `203`
-- Chapter 16 (`RES-*`) → `141`
-- Chapter 17 (`SAF-*`) → `40`
-- Chapter 18 (`MAG-*`) → `201`
-- Chapter 19 (`TST-*`) → `93`
-
-## JSON
+### JSON
 
 ```json
 {
@@ -292,152 +154,69 @@ Chapter palette (ANSI 256 colors):
 }
 ```
 
----
+## Exit codes
+
+| Code | Meaning |
+|---:|---|
+| 0 | No errors |
+| 1 | At least one error, or a warning when `--warnings-as-errors` is set |
+| 2 | Runtime or tooling failure |
 
 ## Inline suppression
 
-Any diagnostic can be silenced without changing the analysis by placing a
-`//goulinette:ignore` comment directive in the source file.
-
-### Directive syntax
-
-```
-//goulinette:ignore [RULE-ID ...]
-```
-
-- **No rule IDs** — suppresses all findings on the associated line.
-- **One or more rule IDs** (space-separated) — suppresses only those rules.
-- Rule IDs are matched case-insensitively.
-
-### Placement rules
-
-The directive may appear either:
-- **On the same line** as the flagged code (trailing comment), or
-- **On the immediately preceding line** (standalone comment).
+Place a directive on the flagged line or on the line above it. Rule IDs are case-insensitive.
 
 ```go
-// Same-line suppression
+// Suppress one rule
 result := riskyOp() //goulinette:ignore ERR-01
 
-// Preceding-line suppression
-//goulinette:ignore MAG-02
-const retries = 3
+// Suppress several rules
+//goulinette:ignore MAG-02 NAM-07
+const appName = "myapp"
 
-// Suppress multiple rules at once
-//goulinette:ignore CON-02 CON-03
-go func() { /* ... */ }()
-
-// Suppress everything on the next line
+// Suppress all rules on the next line
 //goulinette:ignore
-legacyHack()
+legacyCall()
 ```
-
-### When to use it
-
-Use inline suppression sparingly for narrow cases where the rule does not apply in context
-(e.g. a deliberate constant that is intentionally not named, a generated file pattern,
-or a vendored snippet). Prefer fixing the root cause where possible.
-
----
-
-## Rule catalog (implemented)
-
-All requirement rules in `goulinette_requirements.md` are implemented and registered.
-
-### 1) Formatting & Tooling
-`FMT-01`, `FMT-02`, `FMT-03`
-
-### 2) Naming Conventions
-`NAM-01`, `NAM-02`, `NAM-03`, `NAM-04`, `NAM-05`, `NAM-06`, `NAM-07`
-
-### 3) Variable Declarations
-`VAR-01`, `VAR-02`, `VAR-03`, `VAR-04`
-
-### 4) Control Structures
-`CTL-01`, `CTL-02`, `CTL-03`, `CTL-04`
-
-### 5) Functions & Return Values
-`FUN-01`, `FUN-02`, `FUN-03`, `FUN-04`
-
-### 6) Error Handling
-`ERR-01`, `ERR-02`, `ERR-03`, `ERR-04`, `ERR-05`, `ERR-06`, `ERR-07`, `ERR-08`
-
-### 7) Types, Interfaces & Pointers
-`TYP-01`, `TYP-02`, `TYP-03`, `TYP-04`, `TYP-05`, `TYP-06`, `TYP-07`
-
-### 8) Methods & Structs
-`STR-01`, `STR-02`, `STR-03`, `STR-04`
-
-### 9) Packages & Documentation
-`DOC-01`, `DOC-02`, `DOC-03`, `DOC-04`, `DOC-05`
-
-### 10) Slices & Collections
-`SLC-01`
-
-### 11) Concurrency
-`CON-01`, `CON-02`, `CON-03`
-
-### 12) Custom Errors
-`CER-01`, `CER-02`, `CER-03`
-
-### 13) Structural Limits
-`LIM-01`, `LIM-02`, `LIM-03`, `LIM-04`
-
-### 14) Context Handling
-`CTX-01`, `CTX-02`, `CTX-03`, `CTX-04`
-
-### 15) Import Organization
-`IMP-01`, `IMP-02`, `IMP-03`
-
-### 16) Resource Management
-`RES-01`, `RES-02`
-
-### 17) Concurrency Safety
-`SAF-01`, `SAF-02`
-
-### 18) Magic Values
-`MAG-01`, `MAG-02`
-
-### 19) Testing
-`TST-01`, `TST-02`, `TST-03`
-
----
 
 ## Architecture
 
-## Execution pipeline
+Each run follows these steps:
 
-1. Parse CLI flags into `internal/config.Config`
-2. Handle query flags: `--version` prints and exits; `--explain` prints rule rationale and exits
-3. Discover Go files under `--root` (excluding `.git`, `vendor`, `node_modules`)
-4. Build rule context (`root`, files, tool strictness)
-5. Select rules via chapter/include/disable filters
-6. Dispatch selected rules to a bounded `--max-workers` goroutine pool via a buffered work channel
-7. Aggregate diagnostics + runtime errors from the results channel
-8. Apply inline suppression: remove any finding covered by a `//goulinette:ignore` directive
-9. Sort diagnostics deterministically (file → line → column → rule ID)
-10. Print report (`text` or `json`) and return exit code
+1. Parse flags into the configuration.
+2. Discover Go files under the root, skipping `.git`, `vendor` and `node_modules`.
+3. Build the shared rule context.
+4. Select rules from the level, chapter, include and disable settings.
+5. Dispatch rules to a bounded worker pool over a buffered channel.
+6. Collect diagnostics and runtime errors.
+7. Apply inline suppressions.
+8. Sort the diagnostics and write the report.
 
-## Key packages
+A process-local cache shares parsed AST and type information across rules within a run.
 
-- `cmd/goulinette`: CLI entry point; handles `--version` / `--explain` before delegating to `app.Runner`
-- `internal/app`: orchestration and run loop; owns the worker-pool dispatch and suppress-filter step
-- `internal/config`: flag parsing; defines `Settings` (includes `ExplainRule`, `PrintVersion`, `MaxWorkers`)
-- `internal/discovery`: repository file discovery
-- `internal/rules`: rule implementations, helpers, registry, and `explain.go` (rationale map for all 62 rules)
-- `internal/suppress`: `Filter()` — removes diagnostics covered by `//goulinette:ignore` directives
-- `internal/version`: build-time version string (`Current`); injectable via `-ldflags` at release time
-- `internal/tools`: external command execution + diagnostics parsing
-- `internal/diag`: shared diagnostic/result model
-- `internal/report`: text/json rendering
+```text
+cmd/goulinette/       Command-line entry point
+internal/app/         Run orchestration
+internal/config/      Flag parsing and settings
+internal/diag/        Diagnostic model
+internal/discovery/   File discovery
+internal/report/      Text and JSON reporters
+internal/rules/       Rule implementations
+```
 
----
+## Development
 
-## Performance model
+```bash
+go build ./...
+go vet ./...
+go test -race ./...
+```
 
-Goulinette runs rules concurrently through a bounded worker pool and avoids repeated expensive work via per-run caches:
+CI builds the project, runs `go vet`, runs the tests with the race detector, reports coverage to Codecov, and runs Goulinette against its own source.
 
-- **Worker pool**: `--max-workers` goroutines (default 4) pull from a buffered work channel; results are collected over a pre-sized results channel. The pool respects `context.Context` cancellation.
+## License
+
+[MIT](LICENSE)cancellation.
 - **AST cache**: repeated `parseFiles(...)` calls over the same file set reuse parsed structures.
 - **Typed package cache**: repeated `loadTypedPackages(...)` calls per root reuse type-loaded package graphs.
 - **Per-run reset**: caches are reset at app run start, preventing stale data across independent runs.
